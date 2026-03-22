@@ -61,7 +61,18 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<!-- LOGIN -->
+<div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;position:relative;z-index:1;">
+  <h1 style="font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:4px;color:var(--red);text-shadow:0 0 20px rgba(255,34,68,0.4);">ADMIN <span style="color:var(--green);">⚡</span></h1>
+  <div style="background:var(--card);border-radius:14px;padding:28px 24px;width:100%;max-width:340px;border:2px solid #222;display:flex;flex-direction:column;gap:12px;">
+    <input id="login-user" type="text" placeholder="Login" style="background:var(--card2);border:2px solid #333;border-radius:12px;padding:12px 16px;font-size:16px;font-family:'Nunito',sans-serif;color:var(--text);outline:none;width:100%;">
+    <input id="login-pass" type="password" placeholder="Senha" style="background:var(--card2);border:2px solid #333;border-radius:12px;padding:12px 16px;font-size:16px;font-family:'Nunito',sans-serif;color:var(--text);outline:none;width:100%;">
+    <button onclick="doLogin()" style="background:var(--green);border:none;border-radius:12px;padding:14px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;color:#000;">ENTRAR</button>
+    <div id="login-err" style="color:var(--red);font-size:13px;text-align:center;display:none;">Login ou senha incorretos.</div>
+  </div>
+</div>
+
+<div class="wrap" id="admin-panel" style="display:none;">
   <h1>ADMIN <span>⚡</span></h1>
 
   <div class="card">
@@ -119,6 +130,30 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 let pendingAction = null;
 
+// ── LOGIN ──────────────────────────────────────────────────
+window.doLogin = function() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  const err  = document.getElementById('login-err');
+  if (user === 'admin' && pass === '9876543210') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'flex';
+    loadData();
+    log('Login realizado com sucesso.', 'ok');
+  } else {
+    err.style.display = 'block';
+    setTimeout(() => { err.style.display = 'none'; }, 2500);
+  }
+};
+
+// Allow Enter key on password field
+document.addEventListener('DOMContentLoaded', () => {
+  const passEl = document.getElementById('login-pass');
+  if (passEl) passEl.addEventListener('keydown', e => { if (e.key === 'Enter') window.doLogin(); });
+  const userEl = document.getElementById('login-user');
+  if (userEl) userEl.addEventListener('keydown', e => { if (e.key === 'Enter') window.doLogin(); });
+});
+
 function log(msg, type = 'info') {
   const el = document.getElementById('log');
   const t = new Date().toLocaleTimeString('pt-BR');
@@ -160,10 +195,22 @@ async function loadData() {
         const ago = p.lastSeen ? Math.round((Date.now() - p.lastSeen) / 1000) : 999;
         const cls = ago < 15 ? 'ping-ok' : ago < 30 ? 'ping-warn' : 'ping-dead';
         const label = ago < 15 ? '● ONLINE' : ago < 30 ? '● LENTO' : '● OFFLINE';
+        // Render avatar — handle object {url,name}, base64 string, or emoji
+        function renderAv(av) {
+          if (!av) return '<span style="font-size:24px">👤</span>';
+          if (typeof av === 'object' && av.url) {
+            return `<img src="${av.url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.outerHTML='👤'">`;
+          }
+          if (typeof av === 'string' && av.startsWith('data:')) {
+            return `<img src="${av}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`;
+          }
+          return `<span style="font-size:24px">${av}</span>`;
+        }
+
         const item = document.createElement('div');
         item.className = 'pitem';
         item.innerHTML = `
-          <div class="av">${p.avatar||'👤'}</div>
+          <div class="av">${renderAv(p.avatar)}</div>
           <div class="info">
             <div class="name">${p.name}${p.isAdmin?' 👑':''}</div>
             <div class="meta">ping: ${ago}s atrás</div>
@@ -262,5 +309,6 @@ onSnapshot(doc(db, 'game', 'state'), loadData);
 loadData();
 log('Painel conectado.', 'ok');
 </script>
+</div>
 </body>
 </html>
