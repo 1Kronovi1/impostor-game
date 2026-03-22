@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMPOSTOR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --green: #39ff14;
+    --red: #ff2244;
+    --yellow: #ffd600;
+    --card: #1a1a1a;
+    --card2: #222;
+    --text: #f0f0f0;
+    --muted: #888;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(57,255,20,0.07) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(255,34,68,0.07) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    padding: 32px 20px;
+    position: relative;
+    z-index: 1;
+    animation: fadeIn 0.4s ease;
+  }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  h1.logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    letter-spacing: 6px;
+    color: var(--green);
+    text-shadow: 0 0 30px rgba(57,255,20,0.5);
+    margin-bottom: 8px;
+  }
+  h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; margin-bottom: 20px; }
+  p.sub { color: var(--muted); font-size: 14px; margin-bottom: 32px; text-align: center; }
+
+  /* AVATARS */
+  .avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+  .avatar-opt {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card2);
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .avatar-opt:hover { transform: scale(1.1); border-color: var(--muted); }
+  .avatar-opt.selected { border-color: var(--green); box-shadow: 0 0 14px rgba(57,255,20,0.5); transform: scale(1.12); }
+
+  /* INPUT */
+  input[type=text] {
+    width: 100%;
+    background: var(--card2);
+    border: 2px solid #333;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 16px;
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+  input[type=text]:focus { border-color: var(--green); }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { box-shadow: 0 0 20px rgba(57,255,20,0.5); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { box-shadow: 0 0 20px rgba(255,34,68,0.5); }
+  .btn-outline { background: transparent; border: 2px solid var(--green); color: var(--green); }
+  .btn-outline:hover { background: rgba(57,255,20,0.1); }
+  .btn-yellow { background: var(--yellow); color: #000; }
+  .btn-sm {
+    width: auto;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+
+  /* SELECT */
+  select {
+    width: 100%;
+    background: var(--card2);
+    border: 2px solid #333;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 16px;
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    outline: none;
+    margin-bottom: 16px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+  }
+  select:focus { border-color: var(--green); }
+
+  /* LOBBY PLAYERS */
+  .lobby-players {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+  .lobby-player {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 2px solid #222;
+    position: relative;
+    animation: popIn 0.3s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .lobby-player .av { font-size: 36px; }
+  .lobby-player .crown {
+    position: absolute;
+    top: -12px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+  }
+  .player-name-tag { font-size: 12px; color: var(--muted); word-break: break-all; text-align: center; }
+
+  /* ROLE REVEAL */
+  .role-box {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 40px 32px;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 24px;
+    border: 2px solid #222;
+  }
+  .role-box.innocent { border-color: var(--green); box-shadow: 0 0 30px rgba(57,255,20,0.2); }
+  .role-box.impostor { border-color: var(--red); box-shadow: 0 0 30px rgba(255,34,68,0.25); }
+  .role-label { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .role-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    letter-spacing: 4px;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+  .role-name.green { color: var(--green); text-shadow: 0 0 20px rgba(57,255,20,0.6); }
+  .role-name.red { color: var(--red); text-shadow: 0 0 20px rgba(255,34,68,0.6); }
+  .role-desc { font-size: 15px; line-height: 1.6; color: #ccc; }
+
+  /* GAME GRID */
+  .game-header {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--green);
+  }
+  .game-header.imp { border-left-color: var(--red); }
+  .game-header .you-are { font-size: 12px; color: var(--muted); }
+  .game-header .character { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .game-header .character.red { color: var(--red); }
+  .game-header .character.green { color: var(--green); }
+  .game-header .subtext { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .turn-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--yellow);
+    margin-bottom: 16px;
+    align-self: flex-start;
+  }
+
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  .player-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    cursor: pointer;
+    border: 2px solid #222;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .player-card:hover { border-color: #444; transform: translateY(-2px); }
+  .player-card.is-me-impostor { border-color: var(--red); background: #1f0a0e; }
+  .player-card.voted-innocent { border-color: var(--green); }
+  .player-card.voted-impostor { border-color: var(--red); }
+  .player-card .pav { font-size: 34px; }
+  .player-card .pname { font-size: 12px; font-weight: 700; text-align: center; }
+  .player-card .vote-icon { font-size: 28px; }
+  .vote-count {
+    position: absolute;
+    top: -8px; left: -8px;
+    background: var(--red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg);
+  }
+
+  /* POPUP */
+  .popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s;
+  }
+  .popup-overlay.show { display: flex; }
+  .popup-box {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 300px;
+    width: 90%;
+    text-align: center;
+    border: 2px solid #333;
+    animation: popIn 0.25s ease;
+  }
+  .popup-box h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin-bottom: 8px; }
+  .popup-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .popup-actions { display: flex; gap: 10px; }
+  .popup-actions .btn { flex: 1; padding: 12px; font-size: 18px; }
+
+  /* END SCREEN */
+  .end-box {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 40px 28px;
+    text-align: center;
+    width: 100%;
+    border: 2px solid #222;
+  }
+  .end-box .end-title { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 3px; margin-bottom: 12px; }
+  .end-box .end-impostor-label { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  .end-box .end-impostor-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--red);
+    text-shadow: 0 0 20px rgba(255,34,68,0.6);
+    margin-bottom: 20px;
+  }
+  .end-box .end-char-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .end-box .end-char-name { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--green); margin-bottom: 24px; }
+
+  /* WAITING */
+  .waiting-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    margin: 0 3px;
+    animation: blink 1.2s infinite;
+  }
+  .waiting-dot:nth-child(2) { animation-delay: 0.2s; }
+  .waiting-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  .divider { width: 100%; height: 1px; background: #222; margin: 20px 0; }
+  .tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .tag-green { background: rgba(57,255,20,0.15); color: var(--green); }
+  .tag-red { background: rgba(255,34,68,0.15); color: var(--red); }
+
+  /* REJOIN */
+  .rejoin-box {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 36px 28px;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 24px;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 30px rgba(57,255,20,0.15);
+  }
+  .rejoin-avatar { font-size: 64px; margin-bottom: 12px; }
+  .rejoin-name { font-family: "Bebas Neue", sans-serif; font-size: 36px; letter-spacing: 3px; color: var(--green); margin-bottom: 8px; }
+  .rejoin-status { font-size: 14px; color: var(--muted); }
+
+  .firebase-error {
+    background: #1a0a0a;
+    border: 1px solid var(--red);
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 13px;
+    color: #ff8888;
+    margin-top: 16px;
+    text-align: left;
+    line-height: 1.6;
+  }
+  .firebase-error code {
+    display: block;
+    background: #111;
+    padding: 8px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-size: 11px;
+    word-break: break-all;
+    color: var(--yellow);
+  }
+
+  .status-bar {
+    width: 100%;
+    background: var(--card2);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .status-bar span { color: var(--green); font-weight: 700; }
+
+  .config-section {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 2px solid #1f3a1f;
+  }
+  .config-section h3 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--green); margin-bottom: 14px; letter-spacing: 1px; }
+
+  .impostor-vote-info {
+    width: 100%;
+    background: #1f0a0e;
+    border: 1px solid var(--red);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #ff8888;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- SCREEN 1: ENTRADA -->
+<div class="screen active" id="screen-login">
+  <h1 class="logo">IMPOSTOR</h1>
+  <p class="sub">Entre com seu nome e escolha seu avatar</p>
+  <div class="avatar-grid" id="avatar-grid"></div>
+  <input type="text" id="player-name" placeholder="Seu nome..." maxlength="18" />
+  <button class="btn btn-green" onclick="enterGame()">ENTRAR NO JOGO</button>
+  <div id="login-error" style="color:var(--red);font-size:13px;margin-top:12px;text-align:center;"></div>
+
+  <div class="firebase-error" id="firebase-setup-msg" style="display:none;">
+    <strong>⚙️ Configuração necessária</strong><br>
+    Para jogar online com amigos, configure o Firebase:<br><br>
+    1. Acesse <strong>console.firebase.google.com</strong><br>
+    2. Crie um projeto → habilite <strong>Firestore</strong><br>
+    3. Vá em Configurações do projeto → Web → copie o firebaseConfig<br>
+    4. Cole no campo abaixo e salve o arquivo HTML
+    <code id="firebase-placeholder">// Cole seu firebaseConfig aqui no HTML (variável firebaseConfig)</code>
+  </div>
+</div>
+
+<!-- SCREEN REJOIN -->
+<div class="screen" id="screen-rejoin">
+  <h1 class="logo">OI!</h1>
+  <div class="rejoin-box" id="rejoin-box">
+    <div class="rejoin-avatar" id="rejoin-avatar">👤</div>
+    <div class="rejoin-name" id="rejoin-name">Jogador</div>
+    <div class="rejoin-status" id="rejoin-status">Você saiu sem querer?</div>
+  </div>
+  <button class="btn btn-green" onclick="rejoinGame()" style="margin-bottom:12px;">▶ VOLTAR À PARTIDA</button>
+  <button class="btn btn-outline" onclick="newLogin()">✕ ENTRAR COM OUTRO NOME</button>
+</div>
+
+<!-- SCREEN 2: LOBBY -->
+<div class="screen" id="screen-lobby">
+  <h1 class="logo">LOBBY</h1>
+  <div class="status-bar">Jogadores: <span id="lobby-count">0</span> online</div>
+  <div class="lobby-players" id="lobby-players"></div>
+
+  <div class="config-section" id="admin-config" style="display:none;">
+    <h3>⚙️ CONFIGURAÇÕES DO ADMIN</h3>
+    <select id="theme-select">
+      <option value="">— Escolha o tema —</option>
+      <option value="super-herois">Super-heróis</option>
+      <option value="lugares">Lugares Genéricos</option>
+      <option value="comidas">Comidas</option>
+      <option value="animais">Animais</option>
+      <option value="objetos">Objetos</option>
+      <option value="paises">Países</option>
+      <option value="filmes">Personagens de Filme</option>
+      <option value="series">Personagens de Série</option>
+    </select>
+    <button class="btn btn-green" onclick="startGame()">COMEÇAR O JOGO</button>
+  </div>
+
+  <div id="waiting-msg" style="text-align:center;color:var(--muted);font-size:14px;margin-top:8px;">
+    Aguardando o admin iniciar<span class="waiting-dot"></span><span class="waiting-dot"></span><span class="waiting-dot"></span>
+  </div>
+</div>
+
+<!-- SCREEN 3: ROLE REVEAL -->
+<div class="screen" id="screen-role">
+  <h2>SEU PAPEL</h2>
+  <div class="role-box" id="role-box">
+    <div class="role-label">VOCÊ É UM(A):</div>
+    <div class="role-name" id="role-name-display">?</div>
+    <div class="role-desc" id="role-desc-display"></div>
+  </div>
+  <button class="btn btn-green" onclick="goToGame()">ENTENDI, VAMOS JOGAR</button>
+</div>
+
+<!-- SCREEN 4: GAME -->
+<div class="screen" id="screen-game">
+  <div class="game-header" id="game-header">
+    <div class="you-are">VOCÊ É UM(A):</div>
+    <div class="character" id="game-character-display">?</div>
+    <div class="subtext" id="game-subtext"></div>
+  </div>
+
+  <div class="turn-badge" id="turn-display">TURNO: 1</div>
+
+  <div id="impostor-vote-info" class="impostor-vote-info" style="display:none;"></div>
+
+  <div class="player-grid" id="player-grid"></div>
+
+  <button class="btn btn-yellow" id="btn-end-turn" style="display:none;" onclick="endTurn()">ENCERRAR TURNO</button>
+  <button class="btn btn-outline btn-sm" id="btn-ready" style="margin-top:8px;" onclick="toggleReady()">✓ PRONTO</button>
+</div>
+
+<!-- SCREEN 5: END -->
+<div class="screen" id="screen-end">
+  <div class="end-box" id="end-box">
+    <div class="end-title" id="end-title">FIM DE JOGO</div>
+    <div class="end-impostor-label">O IMPOSTOR ERA:</div>
+    <div class="end-impostor-name" id="end-impostor-name">?</div>
+    <div class="end-char-label">O PERSONAGEM ERA:</div>
+    <div class="end-char-name" id="end-char-name">?</div>
+    <button class="btn btn-outline" onclick="restartGame()">REINICIAR</button>
+  </div>
+</div>
+
+<!-- VOTE POPUP -->
+<div class="popup-overlay" id="vote-popup">
+  <div class="popup-box">
+    <h3 id="popup-title">VOTAR</h3>
+    <p id="popup-desc">O que você acha deste jogador?</p>
+    <div class="popup-actions" id="popup-actions"></div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ============================================================
+// 🔥 COLE SEU firebaseConfig AQUI
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCcAKssL2eNsLmnX0OD5ppNhTdgWgYOBs4",
+  authDomain: "projeto-jogo-impostor.firebaseapp.com",
+  projectId: "projeto-jogo-impostor",
+  storageBucket: "projeto-jogo-impostor.firebasestorage.app",
+  messagingSenderId: "15529927986",
+  appId: "1:15529927986:web:4e9b9488da6a6ab854232b"
+};
+// ============================================================
+
+const THEMES = {
+  "super-herois": ["Homem-Aranha","Batman","Superman","Mulher-Maravilha","Hulk","Thor","Viúva Negra","Pantera Negra","Flash","Aquaman","Capitão América","Homem de Ferro","Doutor Estranho","Gavião Arqueiro","Feiticeira Escarlate","Visão","Falcão","Nega Fé","Lanterna Verde","Capitã Marvel"],
+  "lugares": ["Praia","Aeroporto","Hospital","Shopping","Escola","Restaurante","Cinema","Parque","Biblioteca","Supermercado","Academia","Delegacia","Banco","Igreja","Estádio","Museu","Hotel","Farmácia","Posto de Gasolina","Salão de Beleza"],
+  "comidas": ["Pizza","Hambúrguer","Sushi","Tacos","Lasanha","Churrasco","Brigadeiro","Sorvete","Macarrão","Risoto","Frango Frito","Hot Dog","Pastel","Coxinha","Pão de Queijo","Feijoada","Yakisoba","Crepe","Mousse de Chocolate","Espetinho"],
+  "animais": ["Leão","Golfinho","Elefante","Cobra","Pinguim","Coruja","Chimpanzé","Tubarão","Girafa","Pavão","Lobo","Águia","Camelo","Hipopótamo","Pantera","Rinoceronte","Tartaruga","Flamingo","Gorila","Raposa"],
+  "objetos": ["Guarda-chuva","Geladeira","Violão","Chapéu","Relógio","Espelho","Mochila","Óculos","Foguete","Trampolim","Bússola","Lanterna","Ventilador","Tesoura","Calculadora","Binóculo","Teclado","Microfone","Máquina de Lavar","Skate"],
+  "paises": ["Brasil","Japão","França","Egito","Austrália","México","Índia","Noruega","Argentina","Quênia","Itália","Canadá","China","Rússia","Portugal","Coreia do Sul","Turquia","Grécia","África do Sul","Tailândia"],
+  "filmes": ["Homem-Aranha","Luke Skywalker","Hermione Granger","Simba","Coringa","Neo","Moana","Shrek","Frodo","Katniss","Jack Sparrow","Forrest Gump","Tony Stark","Elsa","Dumbledore","Thanos","Woody","Buzz Lightyear","Mulher-Maravilha","Indiana Jones"],
+  "series": ["Walter White","Jon Snow","Daenerys","Sherlock Holmes","Eleven","Tony Soprano","Don Draper","Tyrion Lannister","Dexter","Phoebe Buffay","Michael Scott","Ross Geller","Chandler Bing","Cersei Lannister","Arya Stark","Heisenberg","Saul Goodman","Ragnar Lothbrok","Villanelle","Ted Lasso"]
+};
+
+const AVATARS = ["🐶","🐱","🦊","🐸","🐼","🦁","🐯","🐨","🦄","🐺","🦅","🐙","🦋","🦀","🐲","🌵","🍄","⚡","🔥","💎"];
+
+let app, db;
+let myId = null;
+let myName = null;
+let myAvatar = null;
+let isAdmin = false;
+let myRole = null; // 'innocent' | 'impostor'
+let myCharacter = null;
+let selectedAvatar = null;
+let currentTurn = 1;
+let myVotes = {}; // { playerId: 'innocent'|'impostor' }
+let pendingVoteTarget = null;
+let unsubGame = null;
+let unsubPlayers = null;
+let gameStarted = false;
+
+// Build avatar grid
+const avatarGrid = document.getElementById('avatar-grid');
+AVATARS.forEach((av, i) => {
+  const el = document.createElement('div');
+  el.className = 'avatar-opt';
+  el.textContent = av;
+  el.onclick = () => {
+    document.querySelectorAll('.avatar-opt').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedAvatar = av;
+  };
+  avatarGrid.appendChild(el);
+});
+
+// Init Firebase PRIMEIRO
+try {
+  if (firebaseConfig.apiKey === "COLE_AQUI") throw new Error("not_configured");
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} catch(e) {
+  if (e.message === "not_configured") {
+    document.getElementById('firebase-setup-msg').style.display = 'block';
+  }
+}
+
+// ── SESSÃO ─────────────────────────────────────────────────
+function saveSession() {
+  localStorage.setItem('impostor_session', JSON.stringify({ myId, myName, myAvatar, isAdmin, savedAt: Date.now() }));
+}
+
+function clearSession() {
+  localStorage.removeItem('impostor_session');
+}
+
+async function tryRestoreSession() {
+  if (!db) return false;
+  const raw = localStorage.getItem('impostor_session');
+  if (!raw) return false;
+  try {
+    const s = JSON.parse(raw);
+    if (!s.myId || !s.myName || !s.myAvatar) return false;
+
+    // Verifica se o admin mandou limpar cache
+    try {
+      const clearSnap = await getDoc(doc(db, 'admin', 'clear_cache'));
+      if (clearSnap.exists()) {
+        const clearedAt = clearSnap.data().clearedAt || 0;
+        const savedAt = s.savedAt || 0;
+        if (clearedAt > savedAt) { clearSession(); return false; }
+      }
+    } catch(e) {}
+
+    // Mostra tela de "voltar à partida"
+    document.getElementById('rejoin-avatar').textContent = s.myAvatar;
+    document.getElementById('rejoin-name').textContent = s.myName.toUpperCase();
+
+    // Detecta fase do jogo pra mostrar status
+    try {
+      const gameSnap = await getDoc(doc(db, 'game', 'state'));
+      const phase = gameSnap.exists() ? gameSnap.data().phase : 'lobby';
+      const statusMap = {
+        'lobby': 'Jogo no lobby, aguardando início',
+        'reveal': 'Jogo em andamento — revelação de papéis',
+        'playing': 'Jogo em andamento',
+        'ended': 'Partida encerrada'
+      };
+      document.getElementById('rejoin-status').textContent = statusMap[phase] || 'Jogo em andamento';
+    } catch(e) {}
+
+    showScreen('screen-rejoin');
+    return true;
+  } catch(e) {
+    clearSession();
+    return false;
+  }
+}
+
+// tryRestoreSession será chamado depois que tudo estiver definido
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.enterGame = async function() {
+  const nameEl = document.getElementById('player-name');
+  const errEl = document.getElementById('login-error');
+  const name = nameEl.value.trim();
+  if (!name) { errEl.textContent = 'Digite seu nome!'; return; }
+  if (!selectedAvatar) { errEl.textContent = 'Escolha um avatar!'; return; }
+  if (!db) { errEl.textContent = 'Firebase não configurado. Veja as instruções abaixo.'; return; }
+
+  myId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+  myName = name;
+  myAvatar = selectedAvatar;
+
+  // Check if first player (admin)
+  const playersSnap = await getDocs(collection(db, 'players'));
+  const gameSnap = await getDoc(doc(db, 'game', 'state'));
+  const gameData = gameSnap.exists() ? gameSnap.data() : null;
+
+  // If game in progress, block entry
+  if (gameData && gameData.phase && gameData.phase !== 'lobby') {
+    errEl.textContent = 'Jogo já em andamento. Aguarde a próxima rodada.';
+    return;
+  }
+
+  isAdmin = playersSnap.empty;
+
+  await setDoc(doc(db, 'players', myId), {
+    id: myId,
+    name: myName,
+    avatar: myAvatar,
+    isAdmin: isAdmin,
+    ready: false,
+    joinedAt: Date.now()
+  });
+
+  // Ensure game state exists
+  if (!gameSnap.exists()) {
+    await setDoc(doc(db, 'game', 'state'), { phase: 'lobby', turn: 1 });
+  }
+
+  saveSession();
+  showScreen('screen-lobby');
+  subscribeToLobby();
+  subscribeToGame();
+  startHeartbeat();
+};
+
+
+function subscribeToLobby() {
+  unsubPlayers = onSnapshot(collection(db, 'players'), snap => {
+    const players = [];
+    snap.forEach(d => players.push(d.data()));
+    players.sort((a,b) => a.joinedAt - b.joinedAt);
+    renderLobby(players);
+  });
+}
+
+function renderLobby(players) {
+  const container = document.getElementById('lobby-players');
+  document.getElementById('lobby-count').textContent = players.length;
+  container.innerHTML = '';
+  players.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'lobby-player';
+    el.innerHTML = `
+      ${p.isAdmin ? '<div class="crown">👑</div>' : ''}
+      <div class="av">${p.avatar}</div>
+      <div class="player-name-tag">${p.name}${p.id === myId ? ' (você)' : ''}</div>
+    `;
+    container.appendChild(el);
+  });
+
+  if (isAdmin) {
+    document.getElementById('admin-config').style.display = 'block';
+    document.getElementById('waiting-msg').style.display = 'none';
+  }
+}
+
+function subscribeToGame() {
+  unsubGame = onSnapshot(doc(db, 'game', 'state'), snap => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    handleGameState(data);
+  });
+}
+
+async function handleGameState(data) {
+  if (data.phase === 'lobby') return;
+
+  if (data.phase === 'reveal' && !gameStarted) {
+    gameStarted = true;
+    // Get my role
+    const myRoleSnap = await getDoc(doc(db, 'roles', myId));
+    if (!myRoleSnap.exists()) return;
+    const roleData = myRoleSnap.data();
+    myRole = roleData.role;
+    myCharacter = roleData.character;
+    showRoleScreen();
+  }
+
+  if (data.phase === 'playing') {
+    currentTurn = data.turn || 1;
+    renderGameScreen(data);
+  }
+
+  if (data.phase === 'ended') {
+    showEndScreen(data);
+  }
+}
+
+function showRoleScreen() {
+  showScreen('screen-role');
+  const box = document.getElementById('role-box');
+  const nameEl = document.getElementById('role-name-display');
+  const descEl = document.getElementById('role-desc-display');
+  if (myRole === 'innocent') {
+    box.className = 'role-box innocent';
+    nameEl.className = 'role-name green';
+    nameEl.textContent = myCharacter.toUpperCase();
+    descEl.textContent = 'Seu objetivo é descobrir quem não é um. (Fique atento)';
+  } else {
+    box.className = 'role-box impostor';
+    nameEl.className = 'role-name red';
+    nameEl.textContent = 'IMPOSTOR(A)';
+    descEl.textContent = 'Seu objetivo é não deixar ninguém saber disso. (Minta muito)';
+  }
+}
+
+window.goToGame = async function() {
+  // Signal ready
+  await updateDoc(doc(db, 'players', myId), { ready: true });
+  // Admin transitions phase when ready (or everyone clicks)
+  if (isAdmin) {
+    await updateDoc(doc(db, 'game', 'state'), { phase: 'playing', turn: 1 });
+  }
+  renderGameScreen({ turn: 1 });
+  showScreen('screen-game');
+};
+
+window.startGame = async function() {
+  const theme = document.getElementById('theme-select').value;
+  if (!theme) { alert('Escolha um tema primeiro!'); return; }
+
+  const playersSnap = await getDocs(collection(db, 'players'));
+  const players = [];
+  playersSnap.forEach(d => players.push(d.data()));
+  players.sort((a,b) => a.joinedAt - b.joinedAt);
+
+  if (players.length < 3) { alert('Precisam de pelo menos 3 jogadores!'); return; }
+
+  const words = THEMES[theme];
+  const chosenWord = words[Math.floor(Math.random() * words.length)];
+  const impostorIndex = Math.floor(Math.random() * players.length);
+
+  // Write roles
+  const batch = writeBatch(db);
+  players.forEach((p, i) => {
+    batch.set(doc(db, 'roles', p.id), {
+      role: i === impostorIndex ? 'impostor' : 'innocent',
+      character: i === impostorIndex ? 'IMPOSTOR(A)' : chosenWord,
+      theme: theme
+    });
+  });
+
+  // Write votes doc init
+  players.forEach(p => {
+    batch.set(doc(db, 'votes', p.id), { votedBy: {}, turn: 1 });
+  });
+
+  // Write game state
+  batch.update(doc(db, 'game', 'state'), {
+    phase: 'reveal',
+    turn: 1,
+    theme,
+    character: chosenWord,
+    impostorId: players[impostorIndex].id,
+    impostorName: players[impostorIndex].name,
+    totalPlayers: players.length
+  });
+
+  await batch.commit();
+};
+
+async function renderGameScreen(gameData) {
+  showScreen('screen-game');
+  currentTurn = gameData.turn || 1;
+
+  const header = document.getElementById('game-header');
+  const charDisp = document.getElementById('game-character-display');
+  const subtext = document.getElementById('game-subtext');
+  const turnDisp = document.getElementById('turn-display');
+  const impInfo = document.getElementById('impostor-vote-info');
+
+  turnDisp.textContent = `TURNO: ${currentTurn}`;
+
+  if (myRole === 'innocent') {
+    header.className = 'game-header';
+    charDisp.className = 'character green';
+    charDisp.textContent = myCharacter.toUpperCase();
+    subtext.textContent = 'Quem desses está mentindo?';
+    impInfo.style.display = 'none';
+  } else {
+    header.className = 'game-header imp';
+    charDisp.className = 'character red';
+    charDisp.textContent = 'IMPOSTOR(A)';
+    subtext.textContent = 'Minta para todos eles';
+    impInfo.style.display = 'block';
+    impInfo.textContent = ''; // updated when votes load
+  }
+
+  // Show end-turn only for admin
+  document.getElementById('btn-end-turn').style.display = isAdmin ? 'block' : 'none';
+
+  // Load players & votes
+  await refreshPlayerGrid();
+}
+
+async function refreshPlayerGrid() {
+  const playersSnap = await getDocs(collection(db, 'players'));
+  const players = [];
+  playersSnap.forEach(d => players.push(d.data()));
+  players.sort((a,b) => a.joinedAt - b.joinedAt);
+
+  // Load vote counts (from previous turn)
+  const voteCounts = {};
+  for (const p of players) {
+    const vSnap = await getDoc(doc(db, 'votes', p.id));
+    if (vSnap.exists()) {
+      const vData = vSnap.data();
+      let count = 0;
+      if (vData.votedBy) {
+        Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
+      }
+      voteCounts[p.id] = count;
+    }
+  }
+
+  const grid = document.getElementById('player-grid');
+  grid.innerHTML = '';
+
+  players.forEach(p => {
+    const card = document.createElement('div');
+    const myVote = myVotes[p.id];
+    let voteIcon = '❓';
+    let cardClass = 'player-card';
+
+    if (myVote === 'innocent') { voteIcon = '🚩'; cardClass += ' voted-innocent'; voteIcon = '🟢'; }
+    if (myVote === 'impostor') { voteIcon = '🚩'; cardClass += ' voted-impostor'; }
+
+    const isMe = p.id === myId;
+    const isMeImpostor = isMe && myRole === 'impostor';
+    if (isMeImpostor) { cardClass += ' is-me-impostor'; voteIcon = '❗'; }
+
+    const voteCount = voteCounts[p.id] || 0;
+
+    card.className = cardClass;
+    card.innerHTML = `
+      ${voteCount > 0 ? `<div class="vote-count">${voteCount}</div>` : ''}
+      <div class="pav">${p.avatar}</div>
+      <div class="vote-icon">${myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓'}</div>
+      <div class="pname">${p.name}${isMe ? ' (você)' : ''}</div>
+    `;
+
+    card.onclick = () => openVotePopup(p);
+    grid.appendChild(card);
+  });
+
+  // Update impostor vote info
+  if (myRole === 'impostor') {
+    const myVoteCount = voteCounts[myId] || 0;
+    const info = document.getElementById('impostor-vote-info');
+    info.textContent = myVoteCount === 0
+      ? `Ninguém votou em você ainda. TURNO: ${currentTurn}`
+      : `${myVoteCount} pessoa(s) votaram em você. TURNO: ${currentTurn}`;
+  }
+}
+
+function openVotePopup(player) {
+  const isMe = player.id === myId;
+  pendingVoteTarget = player;
+  const popup = document.getElementById('vote-popup');
+  const title = document.getElementById('popup-title');
+  const desc = document.getElementById('popup-desc');
+  const actions = document.getElementById('popup-actions');
+
+  popup.classList.add('show');
+
+  if (myRole === 'impostor') {
+    title.textContent = isMe ? 'SE ENTREGAR?' : 'ACUSAR INJUSTAMENTE?';
+    desc.textContent = isMe ? 'Vai se entregar pra eles?' : `Vai acusar ${player.name}?`;
+    actions.innerHTML = `
+      <button class="btn btn-red" onclick="castVote('impostor')">SIM</button>
+      <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
+    `;
+  } else {
+    title.textContent = `VOTAR: ${player.name.toUpperCase()}`;
+    desc.textContent = 'O que você acha deste jogador?';
+    actions.innerHTML = `
+      <button class="btn btn-green" onclick="castVote('innocent')" style="font-size:15px;">🟢 INOCENTE</button>
+      <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 IMPOSTOR</button>
+    `;
+  }
+}
+
+window.castVote = async function(verdict) {
+  if (!pendingVoteTarget) return;
+  const targetId = pendingVoteTarget.id;
+  myVotes[targetId] = verdict;
+  closePopup();
+
+  // Save vote to firestore
+  const voteRef = doc(db, 'votes', targetId);
+  const vSnap = await getDoc(voteRef);
+  const current = vSnap.exists() ? (vSnap.data().votedBy || {}) : {};
+  current[myId] = verdict;
+  await updateDoc(voteRef, { votedBy: current });
+
+  await refreshPlayerGrid();
+};
+
+window.closePopup = function() {
+  document.getElementById('vote-popup').classList.remove('show');
+  pendingVoteTarget = null;
+};
+
+window.toggleReady = async function() {
+  const btn = document.getElementById('btn-ready');
+  btn.textContent = '✓ PRONTO';
+};
+
+window.endTurn = async function() {
+  // Check win condition: all players voted for same single player as impostor
+  const playersSnap = await getDocs(collection(db, 'players'));
+  const players = [];
+  playersSnap.forEach(d => players.push(d.data()));
+  const total = players.length;
+
+  const voteCounts = {};
+  for (const p of players) {
+    const vSnap = await getDoc(doc(db, 'votes', p.id));
+    if (vSnap.exists()) {
+      const vData = vSnap.data();
+      let count = 0;
+      if (vData.votedBy) {
+        Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
+      }
+      voteCounts[p.id] = count;
+    }
+  }
+
+  // Find if any player got ALL votes as impostor
+  const gameSnap = await getDoc(doc(db, 'game', 'state'));
+  const gameData = gameSnap.data();
+  const realImpostorId = gameData.impostorId;
+  const character = gameData.character;
+
+  let winner = null;
+  let impostorCaught = false;
+
+  for (const p of players) {
+    if (voteCounts[p.id] === total) {
+      winner = p;
+      impostorCaught = (p.id === realImpostorId);
+      break;
+    }
+  }
+
+  if (winner) {
+    await updateDoc(doc(db, 'game', 'state'), {
+      phase: 'ended',
+      impostorCaught,
+      character,
+      impostorId: realImpostorId,
+      impostorName: gameData.impostorName
+    });
+  } else {
+    // Next turn - reset votes
+    const batch = writeBatch(db);
+    players.forEach(p => {
+      batch.set(doc(db, 'votes', p.id), { votedBy: {}, turn: currentTurn + 1 });
+    });
+    batch.update(doc(db, 'game', 'state'), { turn: currentTurn + 1 });
+    await batch.commit();
+    myVotes = {};
+    currentTurn++;
+    document.getElementById('turn-display').textContent = `TURNO: ${currentTurn}`;
+    await refreshPlayerGrid();
+  }
+};
+
+function showEndScreen(data) {
+  showScreen('screen-end');
+  const box = document.getElementById('end-box');
+  const title = document.getElementById('end-title');
+  const impName = document.getElementById('end-impostor-name');
+  const charName = document.getElementById('end-char-name');
+
+  impName.textContent = data.impostorName || '?';
+  charName.textContent = data.character || '?';
+
+  if (myRole === 'impostor') {
+    if (data.impostorCaught) {
+      title.textContent = 'SE DEU MAL! MENTIU ERRADO';
+      title.style.color = 'var(--red)';
+      box.style.borderColor = 'var(--red)';
+    } else {
+      title.textContent = '🎉 VOCÊ É UM GÊNIO!';
+      title.style.color = 'var(--green)';
+      box.style.borderColor = 'var(--green)';
+    }
+  } else {
+    if (data.impostorCaught) {
+      title.textContent = '🎉 VOCÊS VENCERAM!';
+      title.style.color = 'var(--green)';
+      box.style.borderColor = 'var(--green)';
+    } else {
+      title.textContent = 'VOCÊS FORAM ENGANADOS!';
+      title.style.color = 'var(--red)';
+      box.style.borderColor = 'var(--red)';
+    }
+  }
+}
+
+window.restartGame = async function() {
+  // Clean up roles, votes
+  const playersSnap = await getDocs(collection(db, 'players'));
+  const batch = writeBatch(db);
+  playersSnap.forEach(d => {
+    batch.delete(doc(db, 'roles', d.id));
+    batch.delete(doc(db, 'votes', d.id));
+  });
+  batch.set(doc(db, 'game', 'state'), { phase: 'lobby', turn: 1 });
+  await batch.commit();
+
+  myRole = null;
+  myCharacter = null;
+  myVotes = {};
+  currentTurn = 1;
+  gameStarted = false;
+  clearSession();
+  showScreen('screen-lobby');
+};
+
+window.rejoinGame = async function() {
+  const raw = localStorage.getItem('impostor_session');
+  if (!raw) { showScreen('screen-login'); return; }
+  const s = JSON.parse(raw);
+
+  myId = s.myId;
+  myName = s.myName;
+  myAvatar = s.myAvatar;
+  isAdmin = s.isAdmin;
+
+  // Re-registra no Firestore
+  await setDoc(doc(db, 'players', myId), {
+    id: myId, name: myName, avatar: myAvatar,
+    isAdmin, ready: false, joinedAt: Date.now(), lastSeen: Date.now()
+  });
+
+  subscribeToLobby();
+  subscribeToGame();
+  startHeartbeat();
+
+  const gameSnap = await getDoc(doc(db, 'game', 'state'));
+  const phase = gameSnap.exists() ? gameSnap.data().phase : 'lobby';
+
+  if (phase === 'playing' || phase === 'reveal') {
+    const roleSnap = await getDoc(doc(db, 'roles', myId));
+    if (roleSnap.exists()) {
+      myRole = roleSnap.data().role;
+      myCharacter = roleSnap.data().character;
+      gameStarted = true;
+      if (phase === 'reveal') showRoleScreen();
+      else renderGameScreen(gameSnap.data());
+      return;
+    }
+  } else if (phase === 'ended') {
+    showEndScreen(gameSnap.data());
+    return;
+  }
+
+  showScreen('screen-lobby');
+};
+
+window.newLogin = function() {
+  clearSession();
+  showScreen('screen-login');
+};
+
+
+// ── HEARTBEAT ──────────────────────────────────────────────
+let heartbeatInterval = null;
+
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  sendHeartbeat();
+  heartbeatInterval = setInterval(() => {
+    sendHeartbeat();
+    cleanDeadPlayers();
+  }, 10000);
+}
+
+async function sendHeartbeat() {
+  if (!myId || !db) return;
+  try { await updateDoc(doc(db, 'players', myId), { lastSeen: Date.now() }); } catch(e) {}
+}
+
+async function cleanDeadPlayers() {
+  const threshold = Date.now() - 25000;
+  try {
+    const snap = await getDocs(collection(db, 'players'));
+    const batch = writeBatch(db);
+    let changed = false;
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.id !== myId && data.lastSeen && data.lastSeen < threshold) {
+        batch.delete(doc(db, 'players', d.id));
+        changed = true;
+      }
+    });
+    if (changed) await batch.commit();
+  } catch(e) {}
+}
+
+window.addEventListener('beforeunload', () => {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  if (myId && db) deleteDoc(doc(db, 'players', myId)).catch(()=>{});
+});
+
+// Roda ao carregar — todas as funções já estão definidas aqui
+(async () => { await tryRestoreSession(); })();
+</script>
+</body>
+</html>

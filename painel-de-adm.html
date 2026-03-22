@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMPOSTOR — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --green: #39ff14;
+    --red: #ff2244;
+    --yellow: #ffd600;
+    --card: #1a1a1a;
+    --card2: #222;
+    --text: #f0f0f0;
+    --muted: #888;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(255,34,68,0.07) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(57,255,20,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .panel {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    letter-spacing: 4px;
+    color: var(--red);
+    text-shadow: 0 0 30px rgba(255,34,68,0.5);
+  }
+  h1 span { color: var(--green); }
+  p.sub { color: var(--muted); font-size: 13px; text-align: center; }
+
+  .card {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    border: 2px solid #222;
+  }
+  .card h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    color: var(--yellow);
+  }
+
+  /* STATUS */
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 14px;
+  }
+  .status-row:last-child { border-bottom: none; }
+  .status-row .label { color: var(--muted); }
+  .status-row .value { font-weight: 700; }
+  .value.green { color: var(--green); }
+  .value.red { color: var(--red); }
+  .value.yellow { color: var(--yellow); }
+
+  /* PLAYERS LIST */
+  .player-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .player-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card2);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .player-item .av { font-size: 22px; }
+  .player-item .pname { flex: 1; font-weight: 700; }
+  .player-item .ago { font-size: 11px; color: var(--muted); }
+  .player-item .kick {
+    background: var(--red);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 11px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .player-item .kick:hover { opacity: 0.8; }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { box-shadow: 0 0 20px rgba(255,34,68,0.5); }
+  .btn-yellow { background: var(--yellow); color: #000; }
+  .btn-yellow:hover { box-shadow: 0 0 20px rgba(255,214,0,0.4); }
+  .btn-outline { background: transparent; border: 2px solid var(--green); color: var(--green); font-size: 16px; padding: 10px; }
+  .btn-outline:hover { background: rgba(57,255,20,0.1); }
+
+  /* CONFIRM */
+  .confirm-box {
+    display: none;
+    width: 100%;
+    background: #1f0a0e;
+    border: 2px solid var(--red);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .confirm-box.show { display: block; }
+  .confirm-box p { font-size: 14px; color: #ff8888; margin-bottom: 16px; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-actions .btn { flex: 1; padding: 12px; font-size: 18px; }
+
+  /* LOG */
+  .log {
+    width: 100%;
+    background: #111;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--green);
+    font-family: monospace;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.8;
+  }
+  .log .entry { border-bottom: 1px solid #1a1a1a; padding: 2px 0; }
+  .log .entry.err { color: var(--red); }
+  .log .entry.warn { color: var(--yellow); }
+
+  .divider { width: 100%; height: 1px; background: #1e1e1e; }
+
+  .refresh-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    text-decoration: underline;
+  }
+  .refresh-btn:hover { color: var(--text); }
+
+  .empty-msg { color: var(--muted); font-size: 13px; text-align: center; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>ADMIN <span>⚡</span></h1>
+  <p class="sub">Painel de controle do Jogo do Impostor</p>
+
+  <!-- STATUS -->
+  <div class="card">
+    <h2>📊 STATUS DO JOGO</h2>
+    <div class="status-row">
+      <span class="label">Fase atual</span>
+      <span class="value" id="s-phase">—</span>
+    </div>
+    <div class="status-row">
+      <span class="label">Jogadores online</span>
+      <span class="value green" id="s-players">—</span>
+    </div>
+    <div class="status-row">
+      <span class="label">Turno</span>
+      <span class="value yellow" id="s-turn">—</span>
+    </div>
+    <div class="status-row">
+      <span class="label">Tema</span>
+      <span class="value" id="s-theme">—</span>
+    </div>
+    <div class="status-row">
+      <span class="label">Personagem</span>
+      <span class="value green" id="s-char">—</span>
+    </div>
+  </div>
+
+  <!-- JOGADORES -->
+  <div class="card">
+    <h2>👥 JOGADORES <button class="refresh-btn" onclick="loadData()">↻ atualizar</button></h2>
+    <div class="player-list" id="player-list">
+      <div class="empty-msg">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="card">
+    <h2>⚡ AÇÕES RÁPIDAS</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-yellow" onclick="showConfirm('reset')">🔄 REINICIAR JOGO</button>
+      <button class="btn btn-red" onclick="showConfirm('kill')">💀 KILL — LIMPAR TUDO</button>
+      <button class="btn btn-outline" onclick="showConfirm('cache')">🧹 LIMPAR CACHE DE TODOS</button>
+    </div>
+  </div>
+
+  <!-- CONFIRM -->
+  <div class="confirm-box" id="confirm-box">
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-red" id="confirm-yes" onclick="executeAction()">CONFIRMAR</button>
+      <button class="btn btn-outline" onclick="hideConfirm()">CANCELAR</button>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card">
+    <h2>📋 LOG</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <button class="btn btn-outline" onclick="loadData()">↻ ATUALIZAR TUDO</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, getDocs, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCcAKssL2eNsLmnX0OD5ppNhTdgWgYOBs4",
+  authDomain: "projeto-jogo-impostor.firebaseapp.com",
+  projectId: "projeto-jogo-impostor",
+  storageBucket: "projeto-jogo-impostor.firebasestorage.app",
+  messagingSenderId: "15529927986",
+  appId: "1:15529927986:web:4e9b9488da6a6ab854232b"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let pendingAction = null;
+
+function log(msg, type = '') {
+  const el = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'entry ' + type;
+  const time = new Date().toLocaleTimeString('pt-BR');
+  entry.textContent = `[${time}] ${msg}`;
+  el.prepend(entry);
+}
+
+window.loadData = async function() {
+  log('Atualizando dados...');
+  try {
+    // Game state
+    const gameSnap = await getDoc(doc(db, 'game', 'state'));
+    if (gameSnap.exists()) {
+      const g = gameSnap.data();
+      const phaseEl = document.getElementById('s-phase');
+      phaseEl.textContent = g.phase || '—';
+      phaseEl.className = 'value ' + (g.phase === 'playing' ? 'green' : g.phase === 'ended' ? 'red' : 'yellow');
+      document.getElementById('s-turn').textContent = g.turn || '—';
+      document.getElementById('s-theme').textContent = g.theme || '—';
+      document.getElementById('s-char').textContent = g.character || '—';
+    } else {
+      document.getElementById('s-phase').textContent = 'sem dados';
+    }
+
+    // Players
+    const playersSnap = await getDocs(collection(db, 'players'));
+    const players = [];
+    playersSnap.forEach(d => players.push(d.data()));
+    players.sort((a,b) => a.joinedAt - b.joinedAt);
+    document.getElementById('s-players').textContent = players.length;
+
+    const list = document.getElementById('player-list');
+    if (players.length === 0) {
+      list.innerHTML = '<div class="empty-msg">Nenhum jogador online</div>';
+    } else {
+      list.innerHTML = '';
+      players.forEach(p => {
+        const ago = p.lastSeen ? Math.round((Date.now() - p.lastSeen) / 1000) + 's atrás' : 'sem ping';
+        const item = document.createElement('div');
+        item.className = 'player-item';
+        item.innerHTML = `
+          <div class="av">${p.avatar || '👤'}</div>
+          <div class="pname">${p.name}${p.isAdmin ? ' 👑' : ''}</div>
+          <div class="ago">${ago}</div>
+          <button class="kick" onclick="kickPlayer('${p.id}', '${p.name}')">KICK</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    log('Dados atualizados. ' + players.length + ' jogador(es).', '');
+  } catch(e) {
+    log('Erro ao carregar: ' + e.message, 'err');
+  }
+};
+
+window.kickPlayer = async function(id, name) {
+  try {
+    await deleteDoc(doc(db, 'players', id));
+    log(`Jogador "${name}" removido.`, 'warn');
+    loadData();
+  } catch(e) {
+    log('Erro ao remover jogador: ' + e.message, 'err');
+  }
+};
+
+window.showConfirm = function(action) {
+  pendingAction = action;
+  const box = document.getElementById('confirm-box');
+  const text = document.getElementById('confirm-text');
+  box.classList.add('show');
+  if (action === 'kill') {
+    text.textContent = '⚠️ Isso vai apagar TODOS os dados: jogadores, papéis, votos e estado do jogo. Tem certeza?';
+  } else if (action === 'cache') {
+    text.textContent = '🧹 Isso vai forçar todos os jogadores a fazerem login novamente ao recarregar a página. Confirmar?';
+  } else {
+    text.textContent = '🔄 Isso vai reiniciar o jogo para o lobby, mantendo os jogadores. Confirmar?';
+  }
+};
+
+window.hideConfirm = function() {
+  document.getElementById('confirm-box').classList.remove('show');
+  pendingAction = null;
+};
+
+window.executeAction = async function() {
+  hideConfirm();
+  if (pendingAction === 'kill') await killAll();
+  else if (pendingAction === 'reset') await resetGame();
+  else if (pendingAction === 'cache') await clearAllCache();
+};
+
+async function killAll() {
+  log('Executando KILL...', 'warn');
+  try {
+    const collections = ['players', 'roles', 'votes'];
+    for (const col of collections) {
+      const snap = await getDocs(collection(db, col));
+      const batch = writeBatch(db);
+      snap.forEach(d => batch.delete(doc(db, col, d.id)));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, 'game', 'state'));
+    log('✅ KILL completo. Banco zerado.', '');
+    loadData();
+  } catch(e) {
+    log('Erro no KILL: ' + e.message, 'err');
+  }
+}
+
+async function resetGame() {
+  log('Reiniciando jogo...', 'warn');
+  try {
+    const collections = ['roles', 'votes'];
+    for (const col of collections) {
+      const snap = await getDocs(collection(db, col));
+      const batch = writeBatch(db);
+      snap.forEach(d => batch.delete(doc(db, col, d.id)));
+      await batch.commit();
+    }
+    await setDoc(doc(db, 'game', 'state'), { phase: 'lobby', turn: 1 });
+    log('✅ Jogo reiniciado. Jogadores mantidos.', '');
+    loadData();
+  } catch(e) {
+    log('Erro ao reiniciar: ' + e.message, 'err');
+  }
+}
+
+async function clearAllCache() {
+  log('Limpando cache de todos os jogadores...', 'warn');
+  try {
+    await setDoc(doc(db, 'admin', 'clear_cache'), { clearedAt: Date.now() });
+    log('✅ Sinal enviado! Todos serão deslogados ao recarregar.', '');
+  } catch(e) {
+    log('Erro ao limpar cache: ' + e.message, 'err');
+  }
+}
+
+// Auto-refresh a cada 10s
+loadData();
+setInterval(loadData, 10000);
+
+// Live listener
+onSnapshot(collection(db, 'players'), () => loadData());
+</script>
+</body>
+</html>
