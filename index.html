@@ -260,42 +260,39 @@
   .player-card .pav { font-size: 34px; }
   .player-card .pname { font-size: 12px; font-weight: 700; text-align: center; }
   .player-card .vote-icon { font-size: 28px; }
+  /* ready-badge: canto superior direito, sem conflito */
   .ready-badge {
     position: absolute;
     top: -8px; right: -8px;
-    background: var(--green);
+    background: #fff;
     color: #000;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     border-radius: 50%;
-    width: 22px; height: 22px;
+    width: 20px; height: 20px;
     display: flex; align-items: center; justify-content: center;
     border: 2px solid var(--bg);
+    z-index: 2;
   }
-  .vote-count {
-    position: absolute;
-    top: -8px; left: -8px;
-    background: var(--red);
-    color: #fff;
+  /* barra de votos na parte inferior do card */
+  .vote-bar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    min-height: 18px;
+  }
+  .vote-pill {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 20px;
+    padding: 2px 7px;
     font-size: 11px;
     font-weight: 900;
-    border-radius: 50%;
-    width: 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid var(--bg);
   }
-  .innocent-count {
-    position: absolute;
-    top: -8px; right: -8px;
-    background: var(--green);
-    color: #000;
-    font-size: 11px;
-    font-weight: 900;
-    border-radius: 50%;
-    width: 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid var(--bg);
-  }
+  .vote-pill.imp { background: rgba(255,34,68,0.18); color: var(--red); }
+  .vote-pill.inn { background: rgba(57,255,20,0.15); color: var(--green); }
   .player-card.locked { opacity: 0.6; cursor: not-allowed; }
   .player-card.locked:hover { transform: none; border-color: #222; }
 
@@ -1019,13 +1016,14 @@ function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
     const voteIcon = myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓';
 
     card.className = cardClass;
+    const impPill = impCount > 0 ? `<span class="vote-pill imp">🚩 ${impCount}</span>` : '';
+    const innPill = innCount > 0 ? `<span class="vote-pill inn">🟢 ${innCount}</span>` : '';
     card.innerHTML = `
-      ${impCount > 0 ? `<div class="vote-count">${impCount}</div>` : ''}
-      ${innCount > 0 ? `<div class="innocent-count">${innCount}</div>` : ''}
       ${isReady ? '<div class="ready-badge">✓</div>' : ''}
       <div class="pav">${p.avatar}</div>
       <div class="vote-icon">${voteIcon}</div>
       <div class="pname">${p.name}${isMe ? ' (você)' : ''}</div>
+      <div class="vote-bar">${impPill}${innPill}</div>
     `;
     card.onclick = () => openVotePopup(p);
     grid.appendChild(card);
@@ -1099,9 +1097,12 @@ function subscribeToVotes() {
       voteCounts[d.id] = imp;
       innocentCounts[d.id] = inn;
 
-      // Restaura myVotes local a partir do Firestore
+      // Sincroniza myVotes local com Firestore (fonte da verdade)
       if (vData.votedBy && vData.votedBy[myId]) {
         myVotes[d.id] = vData.votedBy[myId];
+      } else if (myVotes[d.id]) {
+        // Se não há mais meu voto no Firestore (foi removido), limpa local também
+        delete myVotes[d.id];
       }
     });
 
