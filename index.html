@@ -564,7 +564,13 @@
     <div class="end-impostor-name" id="end-impostor-name">?</div>
     <div class="end-char-label">O PERSONAGEM ERA:</div>
     <div class="end-char-name" id="end-char-name">?</div>
-    <button class="btn btn-outline" onclick="restartGame()">REINICIAR</button>
+    <div id="end-btn-admin" style="display:none;">
+      <button class="btn btn-green" onclick="restartGame()">🔄 REINICIAR JOGO</button>
+    </div>
+    <div id="end-btn-player" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Aguardando o admin reiniciar...</p>
+      <button class="btn btn-outline" onclick="goToLobby()">↩ VOLTAR AO LOBBY</button>
+    </div>
   </div>
 </div>
 
@@ -851,7 +857,14 @@ function subscribeToGame() {
 }
 
 async function handleGameState(data) {
-  if (data.phase === 'lobby') return;
+  if (data.phase === 'lobby') {
+    // Admin reiniciou — todos voltam ao lobby automaticamente
+    if (gameStarted) {
+      resetLocalState();
+      showScreen('screen-lobby');
+    }
+    return;
+  }
 
   if (data.phase === 'reveal' && !gameStarted) {
     gameStarted = true;
@@ -1354,25 +1367,52 @@ function showEndScreen(data) {
       box.style.borderColor = 'var(--red)';
     }
   }
+
+  // Mostra botão correto
+  document.getElementById('end-btn-admin').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('end-btn-player').style.display = isAdmin ? 'none' : 'block';
+}
+
+function resetLocalState() {
+  myRole = null;
+  myCharacter = null;
+  myVotes = {};
+  currentTurn = 1;
+  gameStarted = false;
+  iAmReady = false;
+  turnHistory = [];
+  playersCache = [];
+  isEndingTurn = false;
+  // Reset ready button
+  const btnR = document.getElementById('btn-ready');
+  if (btnR) { btnR.textContent = '✓ ESTOU PRONTO'; btnR.style.opacity = '1'; btnR.style.cursor = 'pointer'; }
+  // Hide history
+  const hp = document.getElementById('history-panel');
+  if (hp) hp.classList.remove('show');
 }
 
 window.restartGame = async function() {
-  // Clean up roles, votes
+  // Limpa Firestore
   const playersSnap = await getDocs(collection(db, 'players'));
   const batch = writeBatch(db);
   playersSnap.forEach(d => {
     batch.delete(doc(db, 'roles', d.id));
     batch.delete(doc(db, 'votes', d.id));
   });
-  batch.set(doc(db, 'game', 'state'), { phase: 'lobby', turn: 1 });
+  // Fase lobby sinaliza TODOS os jogadores via onSnapshot
+  batch.set(doc(db, 'game', 'state'), {
+    phase: 'lobby', turn: 1,
+    readyPlayers: {}, history: []
+  });
   await batch.commit();
 
-  myRole = null;
-  myCharacter = null;
-  myVotes = {};
-  currentTurn = 1;
-  gameStarted = false;
-  clearSession();
+  resetLocalState();
+  saveSession();
+  showScreen('screen-lobby');
+};
+
+window.goToLobby = function() {
+  resetLocalState();
   showScreen('screen-lobby');
 };
 
