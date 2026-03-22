@@ -78,16 +78,18 @@
     border-radius: 50%;
     border: 3px solid transparent;
     cursor: pointer;
-    font-size: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--card2);
+    background: #111;
     transition: all 0.2s;
     user-select: none;
+    overflow: hidden;
+    position: relative;
   }
-  .avatar-opt:hover { transform: scale(1.1); border-color: var(--muted); }
-  .avatar-opt.selected { border-color: var(--green); box-shadow: 0 0 14px rgba(57,255,20,0.5); transform: scale(1.12); }
+  .avatar-opt:hover { transform: scale(1.08); border-color: var(--muted); }
+  .avatar-opt.selected { border-color: var(--green); box-shadow: 0 0 16px rgba(57,255,20,0.6); transform: scale(1.12); }
+  .avatar-opt img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
   /* INPUT */
   input[type=text] {
@@ -174,7 +176,7 @@
     animation: popIn 0.3s ease;
   }
   @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .lobby-player .av { font-size: 36px; }
+  .lobby-player .av { font-size: 36px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; }
   .lobby-player .crown {
     position: absolute;
     top: -12px; left: 50%;
@@ -269,7 +271,7 @@
   .player-card.is-me-impostor { border-color: var(--red); background: #1f0a0e; }
   .player-card.voted-innocent { border-color: var(--green); }
   .player-card.voted-impostor { border-color: var(--red); }
-  .player-card .pav { font-size: 34px; }
+  .player-card .pav { font-size: 34px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; }
   .player-card .pname { font-size: 12px; font-weight: 700; text-align: center; }
   .player-card .vote-icon { font-size: 28px; }
   /* ready-badge: canto superior direito, sem conflito */
@@ -392,7 +394,7 @@
     border: 2px solid var(--green);
     box-shadow: 0 0 30px rgba(57,255,20,0.15);
   }
-  .rejoin-avatar { font-size: 64px; margin-bottom: 12px; }
+  .rejoin-avatar { font-size: 64px; margin-bottom: 12px; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .rejoin-name { font-family: "Bebas Neue", sans-serif; font-size: 36px; letter-spacing: 3px; color: var(--green); margin-bottom: 8px; }
   .rejoin-status { font-size: 14px; color: var(--muted); }
 
@@ -625,7 +627,39 @@ const THEMES = {
   "series": ["Walter White","Jon Snow","Daenerys","Sherlock Holmes","Eleven","Tony Soprano","Don Draper","Tyrion Lannister","Dexter","Phoebe Buffay","Michael Scott","Ross Geller","Chandler Bing","Cersei Lannister","Arya Stark","Heisenberg","Saul Goodman","Ragnar Lothbrok","Villanelle","Ted Lasso"]
 };
 
-const AVATARS = ["🐶","🐱","🦊","🐸","🐼","🦁","🐯","🐨","🦄","🐺","🦅","🐙","🦋","🦀","🐲","🌵","🍄","⚡","🔥","💎"];
+const AVATARS = [
+  { id: "av1",  name: "Homem de Ferro",    url: "https://cdn.marvel.com/u/prod/marvel/i/mg/3/50/537ba56d31087/standard_incredible.jpg" },
+  { id: "av2",  name: "Capitão América",   url: "https://cdn.marvel.com/u/prod/marvel/i/mg/c/10/537ba5ff07aa4/standard_incredible.jpg" },
+  { id: "av3",  name: "Wolverine",         url: "https://cdn.marvel.com/u/prod/marvel/i/mg/6/b0/662c2568c6e0f/standard_incredible.jpg" },
+  { id: "av4",  name: "Batman",            url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRWVqfYCZl7d69OZocO38nYrB90oC0uUkU-qQ&s" },
+  { id: "av5",  name: "Superman",          url: "https://i.pinimg.com/474x/68/51/a8/6851a895dd82af62feceac3cc6edd746.jpg" },
+  { id: "av6",  name: "Mulher-Maravilha",  url: "https://i.pinimg.com/originals/60/b1/cb/60b1cb1a8014d743fcc2afe45601e693.jpg" },
+  { id: "av7",  name: "Flash",             url: "https://www.reddit.com/media?url=https%3A%2F%2Fi.redd.it%2F5hp33sx7tmfc1.jpeg" },
+  { id: "av8",  name: "Thor",              url: "https://i.pinimg.com/236x/b3/90/87/b39087461b9876d3bf1aa2ec58217c90.jpg" },
+  { id: "av9",  name: "Hulk",              url: "https://i.pinimg.com/736x/a4/84/48/a4844816aa0db4ba705c2878bb7b2168.jpg" },
+  { id: "av10", name: "Viúva Negra",       url: "https://i.pinimg.com/236x/39/8c/ce/398cce5f667e69c6cefeea1238e75101.jpg" },
+  { id: "av11", name: "Homem-Aranha",      url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7_e75WqvKYsC5lrdJ-CJuG0SjPZfW_VwtWQ&s" },
+  { id: "av12", name: "Doutor Estranho",   url: "https://i.pinimg.com/236x/9e/fa/fe/9efafe36651293008fcc4251d5621101.jpg" },
+  { id: "av13", name: "Pantera Negra",     url: "https://i.pinimg.com/736x/ba/33/eb/ba33eb129cec29598cf61e841f156bc0.jpg" },
+  { id: "av14", name: "Feiticeira",        url: "https://i.pinimg.com/736x/e4/d8/c2/e4d8c2a8cdb0875a555cf2655acea19c.jpg" },
+  { id: "av15", name: "Aquaman",           url: "https://tr.rbxcdn.com/180DAY-d4a6d1564bf7c0e65447501bdb3cc584/420/420/FaceAccessory/Webp/noFilter" },
+  { id: "av16", name: "Coringa",           url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSHjdltQ1ZaDhKEbNZcYTIg3on4LH5ay1y5bw&s" },
+  { id: "av17", name: "Lex Luthor",        url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR07t4HPV1cmxfxJTNHYT0b2UtMZROrNmpsyg&s" },
+  { id: "av18", name: "Thanos",            url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQQQkPHc5GxlKeGGS_8Ft2N02mfrGsk_mr4YQ&s" },
+  { id: "av19", name: "Loki",              url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQU27bQKZ5yaVXrCHXJFf25ZkQz1uffDG5rvg&s" },
+  { id: "av20", name: "Skrillex",          url: "https://rollingstone.com.br/wp-content/uploads/legacy/2011/img-1002590-skrillex.jpg" },
+];
+
+// Helper: retorna HTML de avatar (img ou emoji fallback)
+function avatarImg(av, size = 36) {
+  if (av && typeof av === 'object' && av.url) {
+    return `<img src="${av.url}" alt="${av.name || ''}" title="${av.name || ''}"
+      style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;display:block;"
+      onerror="this.style.display='none'">`;
+  }
+  // fallback para emoji legado
+  return `<span style="font-size:${size * 0.8}px;line-height:1">${av || '👤'}</span>`;
+}
 
 let app, db;
 let myId = null;
@@ -649,14 +683,20 @@ let turnHistory = []; // [{turn, mostVoted}]
 
 // Build avatar grid
 const avatarGrid = document.getElementById('avatar-grid');
-AVATARS.forEach((av, i) => {
+AVATARS.forEach((av) => {
   const el = document.createElement('div');
   el.className = 'avatar-opt';
-  el.textContent = av;
+  el.style.cssText = 'overflow:hidden; padding:0; background:#111;';
+  el.innerHTML = `
+    <img src="${av.url}" alt="${av.name}"
+      style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;"
+      onerror="this.style.display='none';this.parentElement.textContent='?'">
+  `;
+  el.title = av.name;
   el.onclick = () => {
     document.querySelectorAll('.avatar-opt').forEach(e => e.classList.remove('selected'));
     el.classList.add('selected');
-    selectedAvatar = av;
+    selectedAvatar = av; // objeto completo {id, name, url}
   };
   avatarGrid.appendChild(el);
 });
@@ -700,7 +740,7 @@ async function tryRestoreSession() {
     } catch(e) {}
 
     // Mostra tela de "voltar à partida"
-    document.getElementById('rejoin-avatar').textContent = s.myAvatar;
+    document.getElementById('rejoin-avatar').innerHTML = avatarImg(s.myAvatar, 64);
     document.getElementById('rejoin-name').textContent = s.myName.toUpperCase();
 
     // Detecta fase do jogo pra mostrar status
@@ -736,7 +776,7 @@ window.enterGame = async function() {
   const errEl = document.getElementById('login-error');
   const name = nameEl.value.trim();
   if (!name) { errEl.textContent = 'Digite seu nome!'; return; }
-  if (!selectedAvatar) { errEl.textContent = 'Escolha um avatar!'; return; }
+  if (!selectedAvatar) { errEl.textContent = 'Escolha um personagem!'; return; }
   if (!db) { errEl.textContent = 'Firebase não configurado. Veja as instruções abaixo.'; return; }
 
   myId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
@@ -838,7 +878,7 @@ function renderLobby(players) {
     el.className = 'lobby-player' + (isAdmin && !isMe ? ' is-admin-me' : '');
     el.innerHTML = `
       ${p.isAdmin ? '<div class="crown">👑</div>' : ''}
-      <div class="av">${p.avatar}</div>
+      <div class="av">${avatarImg(p.avatar, 40)}</div>
       <div class="player-name-tag">${p.name}${isMe ? ' (você)' : ''}</div>
     `;
     if (isAdmin && !isMe) {
@@ -1125,7 +1165,7 @@ function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
     const innPill = innCount > 0 ? `<span class="vote-pill inn">🟢 ${innCount}</span>` : '';
     card.innerHTML = `
       ${isReady ? '<div class="ready-badge">✓</div>' : ''}
-      <div class="pav">${p.avatar}</div>
+      <div class="pav">${avatarImg(p.avatar, 36)}</div>
       <div class="vote-icon">${voteIcon}</div>
       <div class="pname">${p.name}${isMe ? ' (você)' : ''}</div>
       <div class="vote-bar">${impPill}${innPill}</div>
@@ -1275,7 +1315,7 @@ function renderHistory() {
     item.className = 'history-item';
     item.innerHTML = `
       <span class="hturn">TURNO ${h.turn}</span>
-      <span class="hav">${h.avatar}</span>
+      <span class="hav">${avatarImg(h.avatar, 22)}</span>
       <span class="hname">${h.name}</span>
       <span class="hvotes">🚩 ${h.votes} voto(s)</span>
     `;
