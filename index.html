@@ -284,6 +284,20 @@
     display: flex; align-items: center; justify-content: center;
     border: 2px solid var(--bg);
   }
+  .innocent-count {
+    position: absolute;
+    top: -8px; right: -8px;
+    background: var(--green);
+    color: #000;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg);
+  }
+  .player-card.locked { opacity: 0.6; cursor: not-allowed; }
+  .player-card.locked:hover { transform: none; border-color: #222; }
 
   /* POPUP */
   .popup-overlay {
@@ -982,7 +996,7 @@ async function renderGameScreen(gameData) {
   subscribeToVotes();
 }
 
-function renderPlayerGrid(players, voteCounts, readyPlayers) {
+function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
   const grid = document.getElementById('player-grid');
   grid.innerHTML = '';
 
@@ -997,14 +1011,17 @@ function renderPlayerGrid(players, voteCounts, readyPlayers) {
     const isMe = p.id === myId;
     const isMeImpostor = isMe && myRole === 'impostor';
     if (isMeImpostor) cardClass += ' is-me-impostor';
+    if (iAmReady) cardClass += ' locked';
 
-    const voteCount = voteCounts[p.id] || 0;
+    const impCount = voteCounts[p.id] || 0;
+    const innCount = innocentCounts[p.id] || 0;
     const isReady = readyPlayers && readyPlayers[p.id];
     const voteIcon = myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓';
 
     card.className = cardClass;
     card.innerHTML = `
-      ${voteCount > 0 ? `<div class="vote-count">${voteCount}</div>` : ''}
+      ${impCount > 0 ? `<div class="vote-count">${impCount}</div>` : ''}
+      ${innCount > 0 ? `<div class="innocent-count">${innCount}</div>` : ''}
       ${isReady ? '<div class="ready-badge">✓</div>' : ''}
       <div class="pav">${p.avatar}</div>
       <div class="vote-icon">${voteIcon}</div>
@@ -1041,20 +1058,22 @@ async function refreshPlayerGrid() {
   playersCache.sort((a,b) => a.joinedAt - b.joinedAt);
 
   const voteCounts = {};
+  const innocentCounts = {};
   for (const p of playersCache) {
     const vSnap = await getDoc(doc(db, 'votes', p.id));
     if (vSnap.exists()) {
       const vData = vSnap.data();
-      let count = 0;
-      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
-      voteCounts[p.id] = count;
+      let imp = 0, inn = 0;
+      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') imp++; else if (v === 'innocent') inn++; });
+      voteCounts[p.id] = imp;
+      innocentCounts[p.id] = inn;
     }
   }
 
   const turnSnap = await getDoc(doc(db, 'game', 'state'));
   const readyPlayers = turnSnap.exists() ? (turnSnap.data().readyPlayers || {}) : {};
 
-  renderPlayerGrid(playersCache, voteCounts, readyPlayers);
+  renderPlayerGrid(playersCache, voteCounts, innocentCounts, readyPlayers);
 }
 
 function subscribeToVotes() {
@@ -1065,21 +1084,27 @@ function subscribeToVotes() {
   unsubVotes = onSnapshot(collection(db, 'votes'), async (snapshot) => {
     if (isEndingTurn) return;
 
-    // Monta voteCounts diretamente do snapshot — sem getDoc em loop
-    const voteCounts = {};
+    const voteCounts = {};     // votos de IMPOSTOR por jogador
+    const innocentCounts = {}; // votos de INOCENTE por jogador
+
     snapshot.forEach(d => {
       const vData = d.data();
-      let count = 0;
-      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
-      voteCounts[d.id] = count;
+      let imp = 0, inn = 0;
+      if (vData.votedBy) {
+        Object.values(vData.votedBy).forEach(v => {
+          if (v === 'impostor') imp++;
+          else if (v === 'innocent') inn++;
+        });
+      }
+      voteCounts[d.id] = imp;
+      innocentCounts[d.id] = inn;
 
-      // Atualiza myVotes local se eu votei em alguém
+      // Restaura myVotes local a partir do Firestore
       if (vData.votedBy && vData.votedBy[myId]) {
         myVotes[d.id] = vData.votedBy[myId];
       }
     });
 
-    // Garante que temos a lista de jogadores
     if (!playersCache.length) {
       const snap = await getDocs(collection(db, 'players'));
       playersCache = [];
@@ -1090,7 +1115,7 @@ function subscribeToVotes() {
     const gameSnap = await getDoc(doc(db, 'game', 'state'));
     const readyPlayers = gameSnap.exists() ? (gameSnap.data().readyPlayers || {}) : {};
 
-    renderPlayerGrid(playersCache, voteCounts, readyPlayers);
+    renderPlayerGrid(playersCache, voteCounts, innocentCounts, readyPlayers);
   });
 }
 
@@ -1144,10 +1169,28 @@ function renderHistory() {
 window.castVote = async function(verdict) {
   if (!pendingVoteTarget) return;
   const targetId = pendingVoteTarget.id;
-  myVotes[targetId] = verdict;
   closePopup();
 
-  // Salva voto — o onSnapshot de votes vai atualizar todos automaticamente
+  // Se votou IMPOSTOR, remove voto anterior de impostor de outro jogador
+  if (verdict === 'impostor') {
+    const previousImpostorTarget = Object.entries(myVotes).find(([id, v]) => v === 'impostor' && id !== targetId);
+    if (previousImpostorTarget) {
+      const [oldTargetId] = previousImpostorTarget;
+      // Remove meu voto de impostor do alvo anterior no Firestore
+      const oldRef = doc(db, 'votes', oldTargetId);
+      const oldSnap = await getDoc(oldRef);
+      if (oldSnap.exists()) {
+        const oldData = oldSnap.data().votedBy || {};
+        delete oldData[myId];
+        await updateDoc(oldRef, { votedBy: oldData });
+      }
+      delete myVotes[oldTargetId];
+    }
+  }
+
+  myVotes[targetId] = verdict;
+
+  // Salva voto no Firestore — onSnapshot atualiza todos em tempo real
   const voteRef = doc(db, 'votes', targetId);
   const vSnap = await getDoc(voteRef);
   const current = vSnap.exists() ? (vSnap.data().votedBy || {}) : {};
