@@ -691,11 +691,7 @@ window.enterGame = async function() {
   const gameSnap = await getDoc(doc(db, 'game', 'state'));
   const gameData = gameSnap.exists() ? gameSnap.data() : null;
 
-  // If game in progress, block entry
-  if (gameData && gameData.phase && gameData.phase !== 'lobby') {
-    errEl.textContent = 'Jogo já em andamento. Aguarde a próxima rodada.';
-    return;
-  }
+  // Entrada liberada em qualquer fase
 
   isAdmin = playersSnap.empty;
 
@@ -752,6 +748,22 @@ function renderLobby(players) {
 }
 
 function subscribeToGame() {
+  // Escuta sinal de logout forçado do admin
+  onSnapshot(doc(db, 'admin', 'commands'), snap => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (!data.forceLogout) return;
+    const session = localStorage.getItem('impostor_session');
+    if (!session) return;
+    const s = JSON.parse(session);
+    // Se o sinal foi enviado depois que o jogador salvou a sessão, desloga
+    if (data.logoutAt > (s.savedAt || 0)) {
+      localStorage.removeItem('impostor_session');
+      alert('O admin limpou as sessões. Você será deslogado.');
+      location.reload();
+    }
+  });
+
   unsubGame = onSnapshot(doc(db, 'game', 'state'), snap => {
     if (!snap.exists()) return;
     const data = snap.data();
