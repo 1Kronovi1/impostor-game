@@ -574,6 +574,7 @@ let pendingVoteTarget = null;
 let unsubGame = null;
 let unsubPlayers = null;
 let gameStarted = false;
+let isEndingTurn = false;
 
 // Build avatar grid
 const avatarGrid = document.getElementById('avatar-grid');
@@ -759,6 +760,7 @@ async function handleGameState(data) {
   }
 
   if (data.phase === 'playing') {
+    if (isEndingTurn) return; // ignora snapshot durante endTurn
     currentTurn = data.turn || 1;
     renderGameScreen(data);
   }
@@ -989,6 +991,8 @@ window.toggleReady = async function() {
 };
 
 window.endTurn = async function() {
+  if (isEndingTurn) return; // evita duplo clique
+  isEndingTurn = true;
   // Check win condition: all players voted for same single player as impostor
   const playersSnap = await getDocs(collection(db, 'players'));
   const players = [];
@@ -1046,6 +1050,7 @@ window.endTurn = async function() {
     document.getElementById('turn-display').textContent = `TURNO: ${currentTurn}`;
     await refreshPlayerGrid();
   }
+  isEndingTurn = false;
 };
 
 function showEndScreen(data) {
