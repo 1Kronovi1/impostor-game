@@ -546,6 +546,8 @@
       <option value="paises">Países</option>
       <option value="filmes">Personagens de Filme</option>
       <option value="series">Personagens de Série</option>
+      <option value="jogos">Títulos de Jogos</option>
+      <option value="titulos-filmes">Títulos de Filmes</option>
     </select>
     <button class="btn btn-green" onclick="startGame()">COMEÇAR O JOGO</button>
   </div>
@@ -635,14 +637,66 @@ const firebaseConfig = {
 // ============================================================
 
 const THEMES = {
-  "super-herois": ["Homem-Aranha","Batman","Superman","Mulher-Maravilha","Hulk","Thor","Viúva Negra","Pantera Negra","Flash","Aquaman","Capitão América","Homem de Ferro","Doutor Estranho","Gavião Arqueiro","Feiticeira Escarlate","Visão","Falcão","Nega Fé","Lanterna Verde","Capitã Marvel"],
-  "lugares": ["Praia","Aeroporto","Hospital","Shopping","Escola","Restaurante","Cinema","Parque","Biblioteca","Supermercado","Academia","Delegacia","Banco","Igreja","Estádio","Museu","Hotel","Farmácia","Posto de Gasolina","Salão de Beleza"],
-  "comidas": ["Pizza","Hambúrguer","Sushi","Tacos","Lasanha","Churrasco","Brigadeiro","Sorvete","Macarrão","Risoto","Frango Frito","Hot Dog","Pastel","Coxinha","Pão de Queijo","Feijoada","Yakisoba","Crepe","Mousse de Chocolate","Espetinho"],
-  "animais": ["Leão","Golfinho","Elefante","Cobra","Pinguim","Coruja","Chimpanzé","Tubarão","Girafa","Pavão","Lobo","Águia","Camelo","Hipopótamo","Pantera","Rinoceronte","Tartaruga","Flamingo","Gorila","Raposa"],
-  "objetos": ["Guarda-chuva","Geladeira","Violão","Chapéu","Relógio","Espelho","Mochila","Óculos","Foguete","Trampolim","Bússola","Lanterna","Ventilador","Tesoura","Calculadora","Binóculo","Teclado","Microfone","Máquina de Lavar","Skate"],
-  "paises": ["Brasil","Japão","França","Egito","Austrália","México","Índia","Noruega","Argentina","Quênia","Itália","Canadá","China","Rússia","Portugal","Coreia do Sul","Turquia","Grécia","África do Sul","Tailândia"],
-  "filmes": ["Homem-Aranha","Luke Skywalker","Hermione Granger","Simba","Coringa","Neo","Moana","Shrek","Frodo","Katniss","Jack Sparrow","Forrest Gump","Tony Stark","Elsa","Dumbledore","Thanos","Woody","Buzz Lightyear","Mulher-Maravilha","Indiana Jones"],
-  "series": ["Walter White","Jon Snow","Daenerys","Sherlock Holmes","Eleven","Tony Soprano","Don Draper","Tyrion Lannister","Dexter","Phoebe Buffay","Michael Scott","Ross Geller","Chandler Bing","Cersei Lannister","Arya Stark","Heisenberg","Saul Goodman","Ragnar Lothbrok","Villanelle","Ted Lasso"]
+  "super-herois": [
+    "Homem-Aranha","Batman","Superman","Mulher-Maravilha","Hulk","Thor","Viúva Negra","Pantera Negra","Flash","Aquaman",
+    "Capitão América","Homem de Ferro","Doutor Estranho","Gavião Arqueiro","Feiticeira Escarlate","Visão","Falcão","Lanterna Verde","Capitã Marvel","Wolverine",
+    "Cíclope","Tempestade","Magneto","Professor X","Deadpool","Quarteto Fantástico","Namor","Tocha Humana","Homem de Areia","Elektra",
+    "Demolidor","Lua Negra","Sombra","Fera","Gambit","Jubileu","Colossus","Noturno","Roguê","Psylocke"
+  ],
+  "lugares": [
+    "Praia","Aeroporto","Hospital","Shopping","Escola","Restaurante","Cinema","Parque","Biblioteca","Supermercado",
+    "Academia","Delegacia","Banco","Igreja","Estádio","Museu","Hotel","Farmácia","Posto de Gasolina","Salão de Beleza",
+    "Zoológico","Aquário","Parque de Diversões","Mercado Municipal","Cartório","Cemitério","Lavanderia","Boliche","Karaokê","Barbearia",
+    "Sorveteria","Padaria","Pizzaria","Posto Médico","Câmara Municipal","Presídio","Quartel","Porto","Farol","Caverna"
+  ],
+  "comidas": [
+    "Pizza","Hambúrguer","Sushi","Tacos","Lasanha","Churrasco","Brigadeiro","Sorvete","Macarrão","Risoto",
+    "Frango Frito","Hot Dog","Pastel","Coxinha","Pão de Queijo","Feijoada","Yakisoba","Crepe","Mousse de Chocolate","Espetinho",
+    "Ramen","Sushi","Queijo","Espaguete","Strogonoff","Palha italiana","Tiramisu","Cheesecake","Croissant","Salsicha",
+    "Burrito","Falafel","Manga","Cachorro quente","Mousse","Baklava","Empanada","Stroganoff","Bobó de Camarão","Acarajé"
+  ],
+  "animais": [
+    "Leão","Golfinho","Elefante","Cobra","Pinguim","Coruja","Chimpanzé","Tubarão","Girafa","Pavão",
+    "Lobo","Águia","Camelo","Hipopótamo","Pantera","Rinoceronte","Tartaruga","Flamingo","Gorila","Raposa",
+    "Orca","Ornitorrinco","Axolote","Peixe-palhaço","Manta Raia","Dragão-de-komodo","Quokka","Capivara","Lince","Guepardo",
+    "Narval","Polvo","Tarântula","Tigre-branco","Okapi","Fossa","Aye-aye","Pangolin","Peixe-lua","Tapir"
+  ],
+  "objetos": [
+    "Guarda-chuva","Geladeira","Violão","Chapéu","Relógio","Espelho","Mochila","Óculos","Foguete","Trampolim",
+    "Bússola","Lanterna","Ventilador","Tesoura","Calculadora","Binóculo","Teclado","Microfone","Máquina de Lavar","Skate",
+    "Sextante","Metrônomo","Astrolábio","Caleidoscópio","Acordeão","Theremin","Sifão","Pantógrafo","Estetoscópio","Periscópio",
+    "Desfibrilador","Abacus","Catapulta","Guilhotina","Peruca","Bengala","Monóculo","Toca-fitas","Polaróide","Máquina de Escrever"
+  ],
+  "paises": [
+    "Brasil","Japão","França","Egito","Austrália","México","Índia","Noruega","Argentina","Quênia",
+    "Itália","Canadá","China","Rússia","Portugal","Coreia do Sul","Turquia","Grécia","África do Sul","Tailândia",
+    "Islândia","Nova Zelândia","Marrocos","Peru","Etiópia","Colômbia","Paquistão","Vietnã","Polônia","Suécia",
+    "Irlanda","Hungria","Chile","Venezuela","Cazaquistão","Uzbequistão","Filipinas","Tanzânia","Equador","Cuba"
+  ],
+  "filmes": [
+    "Homem-Aranha","Luke Skywalker","Hermione Granger","Simba","Coringa","Neo","Moana","Shrek","Frodo","Katniss",
+    "Jack Sparrow","Forrest Gump","Tony Stark","Elsa","Dumbledore","Thanos","Woody","Buzz Lightyear","Mulher-Maravilha","Indiana Jones",
+    "Ethan Hunt","John Wick","Dom Toretto","Ellen Ripley","T-800","Rocky Balboa","Hannibal Lecter","Travis Bickle","Patrick Bateman","Tyler Durden",
+    "Capitão Barbossa","Gollum","Gandalf","Mufasa","Scar","Ursula","Gaston","Malévola","Cruella de Vil","Hans Landa"
+  ],
+  "series": [
+    "Walter White","Jon Snow","Daenerys","Sherlock Holmes","Eleven","Tony Soprano","Don Draper","Tyrion Lannister","Dexter","Phoebe Buffay",
+    "Michael Scott","Ross Geller","Chandler Bing","Cersei Lannister","Arya Stark","Heisenberg","Saul Goodman","Ragnar Lothbrok","Villanelle","Ted Lasso",
+    "Tommy Shelby","Negan","Rick Grimes","Frank Underwood","Claire Underwood","Harvey Specter","Patrick Jane","Gregory House","Bojack Horseman","BoJack",
+    "Fleabag","Fleabag Priest","Jimmy McGill","Kim Wexler","Nacho Varga","Gus Fring","Lalo Salamanca","Howard Hamlin","Chuck McGill","Mike Ehrmantraut"
+  ],
+  "jogos": [
+    "Minecraft","Fortnite","GTA V","The Last of Us","Red Dead Redemption 2","God of War","Zelda: Breath of the Wild","Elden Ring","Dark Souls","Hollow Knight",
+    "Stardew Valley","Among Us","Overwatch","League of Legends","Valorant","Counter-Strike","Apex Legends","Rocket League","Fall Guys","Celeste",
+    "Hades","Cuphead","Ori and the Blind Forest","Disco Elysium","Undertale","Cyberpunk 2077","The Witcher 3","Horizon Zero Dawn","Ghost of Tsushima","Sekiro",
+    "Bloodborne","Metal Gear Solid V","Bioshock Infinite","The Elder Scrolls V: Skyrim","Mass Effect 2","Portal 2","Half-Life 2","Detroit: Become Human","Persona 5","Tetris"
+  ],
+  "titulos-filmes": [
+    "O Poderoso Chefão","Clube da Luta","Matrix","Interestelar","Inception","Parasita","Coringa","Joker","Whiplash","La La Land",
+    "Coco","Soul","Viva — A Vida é uma Festa","Spirited Away","Akira","Pulp Fiction","Reservoir Dogs","Kill Bill","Django Livre","Bastardos Inglórios",
+    "O Senhor dos Anéis","Hobbit","Star Wars","Vingadores","Homem de Ferro","Batman: O Cavaleiro das Trevas","Mulher-Maravilha","Guardiões da Galáxia","Thor: Ragnarok","Doutor Estranho",
+    "Titanic","Avatar","Jurassic Park","De Volta Para o Futuro","E.T.","Os Caça-Fantasmas","Indiana Jones","Velocidade Máxima","Mad Max: Estrada da Fúria","Tenet"
+  ]
 };
 
 const AVATARS = [
