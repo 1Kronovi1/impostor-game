@@ -866,17 +866,40 @@ async function handleGameState(data) {
 
   if (data.phase === 'playing') {
     if (isEndingTurn) return; // ignora snapshot durante endTurn
-    currentTurn = data.turn || 1;
-    // Update ready badges live without full re-render
-    if (playersCache.length) {
+    const newTurn = data.turn || 1;
+
+    if (newTurn !== currentTurn) {
+      // ── TURNO MUDOU: reseta tudo para todos ──────────────
+      myVotes = {};
+      iAmReady = false;
+
+      const btnR = document.getElementById('btn-ready');
+      if (btnR) {
+        btnR.textContent = '✓ ESTOU PRONTO';
+        btnR.style.opacity = '1';
+        btnR.style.cursor = 'pointer';
+      }
+
+      // Sincroniza histórico do Firestore para todos (não só admin)
+      if (data.history) {
+        turnHistory = data.history;
+        renderHistory();
+      }
+
+      currentTurn = newTurn;
+      renderGameScreen(data);
+    } else if (!playersCache.length) {
+      renderGameScreen(data);
+    } else {
+      // Mesmo turno — só atualiza badge de pronto
       const readyPlayers = data.readyPlayers || {};
       const btnReady = document.getElementById('btn-ready');
-      if (btnReady && readyPlayers[myId]) {
-        btnReady.textContent = '✓ PRONTO';
-        btnReady.style.opacity = '0.5';
+      if (btnReady) {
+        if (readyPlayers[myId]) {
+          btnReady.textContent = '✓ PRONTO';
+          btnReady.style.opacity = '0.5';
+        }
       }
-    } else {
-      renderGameScreen(data);
     }
   }
 
@@ -1266,33 +1289,35 @@ window.endTurn = async function() {
       impostorName: gameData.impostorName
     });
   } else {
-    // Next turn - reset votes
-    const batch = writeBatch(db);
-    players.forEach(p => {
-      batch.set(doc(db, 'votes', p.id), { votedBy: {}, turn: currentTurn + 1 });
-    });
-    batch.update(doc(db, 'game', 'state'), { turn: currentTurn + 1, readyPlayers: {} });
-    await batch.commit();
-    // Save history before resetting
+    // Calcula histórico antes do commit
     let mostVoted = null;
     let maxVotes = 0;
     players.forEach(p => { if ((voteCounts[p.id]||0) > maxVotes) { maxVotes = voteCounts[p.id]||0; mostVoted = p; } });
     if (mostVoted && maxVotes > 0) turnHistory.push({ turn: currentTurn, name: mostVoted.name, avatar: mostVoted.avatar, votes: maxVotes });
 
+    // Batch único: votos zerados + novo turno + histórico para todos
+    const batch = writeBatch(db);
+    players.forEach(p => {
+      batch.set(doc(db, 'votes', p.id), { votedBy: {} });
+    });
+    batch.update(doc(db, 'game', 'state'), {
+      turn: currentTurn + 1,
+      readyPlayers: {},
+      history: turnHistory
+    });
+    await batch.commit();
+
+    // Reset local (admin)
     myVotes = {};
     iAmReady = false;
     currentTurn++;
     document.getElementById('turn-display').textContent = `TURNO: ${currentTurn}`;
-
-    // Reset ready button
     const btnR = document.getElementById('btn-ready');
     btnR.textContent = '✓ ESTOU PRONTO';
     btnR.style.opacity = '1';
     btnR.style.cursor = 'pointer';
 
-    // Update history panel
     renderHistory();
-
     await refreshPlayerGrid();
   }
   isEndingTurn = false;
