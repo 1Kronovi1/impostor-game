@@ -183,6 +183,18 @@
   }
   .player-name-tag { font-size: 12px; color: var(--muted); word-break: break-all; text-align: center; }
 
+  /* LOBBY TRANSFER */
+  .lobby-player.is-admin-me { cursor: pointer; }
+  .lobby-player.is-admin-me:hover { border-color: var(--yellow); transform: scale(1.04); transition: all 0.2s; }
+  .transfer-hint {
+    font-size: 11px;
+    color: var(--yellow);
+    text-align: center;
+    margin-top: -12px;
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+
   /* ROLE REVEAL */
   .role-box {
     background: var(--card);
@@ -500,6 +512,7 @@
   <h1 class="logo">LOBBY</h1>
   <div class="status-bar">Jogadores: <span id="lobby-count">0</span> online</div>
   <div class="lobby-players" id="lobby-players"></div>
+  <div class="transfer-hint" id="transfer-hint" style="display:none;">👑 Toque em um jogador para passar a coroa</div>
 
   <div class="config-section" id="admin-config" style="display:none;">
     <h3>⚙️ CONFIGURAÇÕES DO ADMIN</h3>
@@ -761,11 +774,54 @@ window.enterGame = async function() {
 };
 
 
+function openTransferPopup(player) {
+  const popup = document.getElementById('vote-popup');
+  const title = document.getElementById('popup-title');
+  const desc = document.getElementById('popup-desc');
+  const actions = document.getElementById('popup-actions');
+  title.textContent = '👑 PASSAR A COROA';
+  desc.textContent = `Deseja passar o título de Admin para ${player.name}?`;
+  actions.innerHTML = `
+    <button class="btn btn-yellow" onclick="transferAdmin('${player.id}')" style="font-size:16px;">👑 CONFIRMAR</button>
+    <button class="btn btn-outline" onclick="closePopup()" style="font-size:16px;">CANCELAR</button>
+  `;
+  popup.classList.add('show');
+}
+
+window.transferAdmin = async function(newAdminId) {
+  closePopup();
+  try {
+    // Remove admin do jogador atual
+    await updateDoc(doc(db, 'players', myId), { isAdmin: false });
+    // Dá admin para o novo jogador
+    await updateDoc(doc(db, 'players', newAdminId), { isAdmin: true });
+    // Atualiza local
+    isAdmin = false;
+    saveSession();
+    // Esconde painel admin e mostra mensagem de espera
+    document.getElementById('admin-config').style.display = 'none';
+    document.getElementById('transfer-hint').style.display = 'none';
+    document.getElementById('waiting-msg').style.display = 'block';
+  } catch(e) {
+    console.error('Erro ao transferir admin:', e);
+  }
+};
+
 function subscribeToLobby() {
   unsubPlayers = onSnapshot(collection(db, 'players'), snap => {
     const players = [];
     snap.forEach(d => players.push(d.data()));
     players.sort((a,b) => a.joinedAt - b.joinedAt);
+
+    // Verifica se eu me tornei admin
+    const me = players.find(p => p.id === myId);
+    if (me && me.isAdmin && !isAdmin) {
+      isAdmin = true;
+      saveSession();
+      document.getElementById('admin-config').style.display = 'block';
+      document.getElementById('waiting-msg').style.display = 'none';
+    }
+
     renderLobby(players);
   });
 }
@@ -774,20 +830,27 @@ function renderLobby(players) {
   const container = document.getElementById('lobby-players');
   document.getElementById('lobby-count').textContent = players.length;
   container.innerHTML = '';
+
   players.forEach(p => {
     const el = document.createElement('div');
-    el.className = 'lobby-player';
+    const isMe = p.id === myId;
+    // Admin pode clicar em qualquer jogador menos ele mesmo
+    el.className = 'lobby-player' + (isAdmin && !isMe ? ' is-admin-me' : '');
     el.innerHTML = `
       ${p.isAdmin ? '<div class="crown">👑</div>' : ''}
       <div class="av">${p.avatar}</div>
-      <div class="player-name-tag">${p.name}${p.id === myId ? ' (você)' : ''}</div>
+      <div class="player-name-tag">${p.name}${isMe ? ' (você)' : ''}</div>
     `;
+    if (isAdmin && !isMe) {
+      el.onclick = () => openTransferPopup(p);
+    }
     container.appendChild(el);
   });
 
   if (isAdmin) {
     document.getElementById('admin-config').style.display = 'block';
     document.getElementById('waiting-msg').style.display = 'none';
+    document.getElementById('transfer-hint').style.display = players.length > 1 ? 'block' : 'none';
   }
 }
 
