@@ -950,6 +950,7 @@ window.enterGame = async function() {
   showScreen('screen-lobby');
   subscribeToLobby();
   subscribeToGame();
+  subscribeToPlayers();
   startHeartbeat();
 };
 
@@ -1359,6 +1360,28 @@ async function refreshPlayerGrid() {
   renderPlayerGrid(playersCache, voteCounts, innocentCounts, readyPlayers);
 }
 
+function subscribeToPlayers() {
+  // Escuta jogadores durante o jogo — detecta kick em tempo real
+  onSnapshot(collection(db, 'players'), snap => {
+    const players = [];
+    snap.forEach(d => players.push(d.data()));
+
+    // Fui kickado durante o jogo?
+    const me = players.find(p => p.id === myId);
+    if (!me && myId && gameStarted) {
+      clearSession();
+      resetLocalState();
+      alert('Você foi removido da partida pelo admin.');
+      location.reload();
+    }
+
+    // Atualiza cache
+    if (players.length) {
+      playersCache = players.sort((a,b) => (a.joinedAt||0) - (b.joinedAt||0));
+    }
+  });
+}
+
 function subscribeToVotes() {
   if (unsubVotes) unsubVotes();
 
@@ -1741,6 +1764,7 @@ window.rejoinGame = async function() {
 
   subscribeToLobby();
   subscribeToGame();
+  subscribeToPlayers();
   startHeartbeat();
 
   const gameSnap = await getDoc(doc(db, 'game', 'state'));
