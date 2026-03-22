@@ -1168,12 +1168,23 @@ function openVotePopup(player) {
   popup.classList.add('show');
 
   if (myRole === 'impostor') {
-    title.textContent = isMe ? 'SE ENTREGAR?' : 'ACUSAR INJUSTAMENTE?';
-    desc.textContent = isMe ? 'Vai se entregar pra eles?' : `Vai acusar ${player.name}?`;
-    actions.innerHTML = `
-      <button class="btn btn-red" onclick="castVote('impostor')">SIM</button>
-      <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
-    `;
+    if (isMe) {
+      // Votando em si mesmo
+      title.textContent = 'SE ENTREGAR?';
+      desc.textContent = 'Vai se denunciar pra eles?';
+      actions.innerHTML = `
+        <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 SE ENTREGAR</button>
+        <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
+      `;
+    } else {
+      // Votando em outro jogador — impostor tem as mesmas opções dos inocentes
+      title.textContent = `VOTAR: ${player.name.toUpperCase()}`;
+      desc.textContent = 'Finja que você sabe o que é...';
+      actions.innerHTML = `
+        <button class="btn btn-green" onclick="castVote('innocent')" style="font-size:15px;">🟢 INOCENTE</button>
+        <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 IMPOSTOR</button>
+      `;
+    }
   } else {
     title.textContent = `VOTAR: ${player.name.toUpperCase()}`;
     desc.textContent = 'O que você acha deste jogador?';
