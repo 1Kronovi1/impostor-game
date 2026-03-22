@@ -417,6 +417,26 @@
   }
   .config-section h3 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--green); margin-bottom: 14px; letter-spacing: 1px; }
 
+  /* HISTORY */
+  .turn-row { display: flex; align-items: center; gap: 8px; }
+  .history-panel {
+    width: 100%;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px solid #2a2a2a;
+    display: none;
+  }
+  .history-panel.show { display: block; }
+  .history-title { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+  .history-item { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #222; }
+  .history-item:last-child { border-bottom: none; }
+  .history-item .hturn { color: var(--muted); min-width: 56px; font-size: 11px; }
+  .history-item .hav { font-size: 16px; }
+  .history-item .hname { flex: 1; font-weight: 700; }
+  .history-item .hvotes { color: var(--red); font-size: 11px; font-weight: 700; }
+
   .impostor-vote-info {
     width: 100%;
     background: #1f0a0e;
@@ -512,6 +532,11 @@
 
   <div class="turn-badge" id="turn-display">TURNO: 1</div>
 
+  <div class="history-panel" id="history-panel">
+    <div class="history-title">📋 HISTÓRICO DE TURNOS</div>
+    <div id="history-list"></div>
+  </div>
+
   <div id="impostor-vote-info" class="impostor-vote-info" style="display:none;"></div>
 
   <div class="player-grid" id="player-grid"></div>
@@ -589,6 +614,8 @@ let unsubVotes = null;
 let playersCache = [];
 let gameStarted = false;
 let isEndingTurn = false;
+let iAmReady = false;
+let turnHistory = []; // [{turn, mostVoted}]
 
 // Build avatar grid
 const avatarGrid = document.getElementById('avatar-grid');
@@ -1068,6 +1095,7 @@ function subscribeToVotes() {
 }
 
 function openVotePopup(player) {
+  if (iAmReady) return; // bloqueado após clicar pronto
   const isMe = player.id === myId;
   pendingVoteTarget = player;
   const popup = document.getElementById('vote-popup');
@@ -1094,6 +1122,25 @@ function openVotePopup(player) {
   }
 }
 
+function renderHistory() {
+  const panel = document.getElementById('history-panel');
+  const list = document.getElementById('history-list');
+  if (!turnHistory.length) { panel.classList.remove('show'); return; }
+  panel.classList.add('show');
+  list.innerHTML = '';
+  [...turnHistory].reverse().forEach(h => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <span class="hturn">TURNO ${h.turn}</span>
+      <span class="hav">${h.avatar}</span>
+      <span class="hname">${h.name}</span>
+      <span class="hvotes">🚩 ${h.votes} voto(s)</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
 window.castVote = async function(verdict) {
   if (!pendingVoteTarget) return;
   const targetId = pendingVoteTarget.id;
@@ -1114,14 +1161,17 @@ window.closePopup = function() {
 };
 
 window.toggleReady = async function() {
+  if (iAmReady) return;
+  iAmReady = true;
+  const btn = document.getElementById('btn-ready');
+  btn.textContent = '✓ PRONTO';
+  btn.style.opacity = '0.4';
+  btn.style.cursor = 'not-allowed';
+
   const turnSnap = await getDoc(doc(db, 'game', 'state'));
   const readyPlayers = turnSnap.exists() ? (turnSnap.data().readyPlayers || {}) : {};
   readyPlayers[myId] = true;
   await updateDoc(doc(db, 'game', 'state'), { readyPlayers });
-
-  const btn = document.getElementById('btn-ready');
-  btn.textContent = '✓ PRONTO';
-  btn.style.opacity = '0.5';
 };
 
 window.endTurn = async function() {
@@ -1179,9 +1229,26 @@ window.endTurn = async function() {
     });
     batch.update(doc(db, 'game', 'state'), { turn: currentTurn + 1, readyPlayers: {} });
     await batch.commit();
+    // Save history before resetting
+    let mostVoted = null;
+    let maxVotes = 0;
+    players.forEach(p => { if ((voteCounts[p.id]||0) > maxVotes) { maxVotes = voteCounts[p.id]||0; mostVoted = p; } });
+    if (mostVoted && maxVotes > 0) turnHistory.push({ turn: currentTurn, name: mostVoted.name, avatar: mostVoted.avatar, votes: maxVotes });
+
     myVotes = {};
+    iAmReady = false;
     currentTurn++;
     document.getElementById('turn-display').textContent = `TURNO: ${currentTurn}`;
+
+    // Reset ready button
+    const btnR = document.getElementById('btn-ready');
+    btnR.textContent = '✓ ESTOU PRONTO';
+    btnR.style.opacity = '1';
+    btnR.style.cursor = 'pointer';
+
+    // Update history panel
+    renderHistory();
+
     await refreshPlayerGrid();
   }
   isEndingTurn = false;
