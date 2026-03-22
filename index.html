@@ -260,6 +260,18 @@
   .player-card .pav { font-size: 34px; }
   .player-card .pname { font-size: 12px; font-weight: 700; text-align: center; }
   .player-card .vote-icon { font-size: 28px; }
+  .ready-badge {
+    position: absolute;
+    top: -8px; right: -8px;
+    background: var(--green);
+    color: #000;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg);
+  }
   .vote-count {
     position: absolute;
     top: -8px; left: -8px;
@@ -573,6 +585,8 @@ let myVotes = {}; // { playerId: 'innocent'|'impostor' }
 let pendingVoteTarget = null;
 let unsubGame = null;
 let unsubPlayers = null;
+let unsubVotes = null;
+let playersCache = [];
 let gameStarted = false;
 let isEndingTurn = false;
 
@@ -742,6 +756,47 @@ function subscribeToGame() {
     if (!snap.exists()) return;
     const data = snap.data();
     handleGameState(data);
+
+    // Atualiza readyPlayers em tempo real durante o jogo
+    if (data.phase === 'playing' && playersCache.length) {
+      const readyPlayers = data.readyPlayers || {};
+      // Só re-renderiza se mudou prontos (não durante endTurn)
+      if (!isEndingTurn) {
+        const gameStateVoteCounts = {};
+        // voteCounts serão atualizados pelo subscribeToVotes
+        // aqui só atualizamos o ready badge
+        const grid = document.getElementById('player-grid');
+        if (grid) {
+          playersCache.forEach(p => {
+            const cards = grid.querySelectorAll('.player-card');
+            cards.forEach(card => {
+              const nameEl = card.querySelector('.pname');
+              if (nameEl && (nameEl.textContent.includes(p.name))) {
+                const existingBadge = card.querySelector('.ready-badge');
+                if (readyPlayers[p.id] && !existingBadge) {
+                  const badge = document.createElement('div');
+                  badge.className = 'ready-badge';
+                  badge.textContent = '✓';
+                  card.appendChild(badge);
+                }
+              }
+            });
+          });
+        }
+
+        // Atualiza o botão pronto
+        const btnReady = document.getElementById('btn-ready');
+        if (btnReady) {
+          if (readyPlayers[myId]) {
+            btnReady.textContent = '✓ PRONTO';
+            btnReady.style.opacity = '0.5';
+          } else {
+            btnReady.textContent = '✓ ESTOU PRONTO';
+            btnReady.style.opacity = '1';
+          }
+        }
+      }
+    }
   });
 }
 
@@ -762,7 +817,17 @@ async function handleGameState(data) {
   if (data.phase === 'playing') {
     if (isEndingTurn) return; // ignora snapshot durante endTurn
     currentTurn = data.turn || 1;
-    renderGameScreen(data);
+    // Update ready badges live without full re-render
+    if (playersCache.length) {
+      const readyPlayers = data.readyPlayers || {};
+      const btnReady = document.getElementById('btn-ready');
+      if (btnReady && readyPlayers[myId]) {
+        btnReady.textContent = '✓ PRONTO';
+        btnReady.style.opacity = '0.5';
+      }
+    } else {
+      renderGameScreen(data);
+    }
   }
 
   if (data.phase === 'ended') {
@@ -873,61 +938,44 @@ async function renderGameScreen(gameData) {
   // Show end-turn only for admin
   document.getElementById('btn-end-turn').style.display = isAdmin ? 'block' : 'none';
 
-  // Load players & votes
+  // Load players & subscribe to live votes
   await refreshPlayerGrid();
+  subscribeToVotes();
 }
 
-async function refreshPlayerGrid() {
-  const playersSnap = await getDocs(collection(db, 'players'));
-  const players = [];
-  playersSnap.forEach(d => players.push(d.data()));
-  players.sort((a,b) => a.joinedAt - b.joinedAt);
-
-  // Load vote counts (from previous turn)
-  const voteCounts = {};
-  for (const p of players) {
-    const vSnap = await getDoc(doc(db, 'votes', p.id));
-    if (vSnap.exists()) {
-      const vData = vSnap.data();
-      let count = 0;
-      if (vData.votedBy) {
-        Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
-      }
-      voteCounts[p.id] = count;
-    }
-  }
-
+function renderPlayerGrid(players, voteCounts, readyPlayers) {
   const grid = document.getElementById('player-grid');
   grid.innerHTML = '';
 
   players.forEach(p => {
     const card = document.createElement('div');
     const myVote = myVotes[p.id];
-    let voteIcon = '❓';
     let cardClass = 'player-card';
 
-    if (myVote === 'innocent') { voteIcon = '🚩'; cardClass += ' voted-innocent'; voteIcon = '🟢'; }
-    if (myVote === 'impostor') { voteIcon = '🚩'; cardClass += ' voted-impostor'; }
+    if (myVote === 'innocent') cardClass += ' voted-innocent';
+    if (myVote === 'impostor') cardClass += ' voted-impostor';
 
     const isMe = p.id === myId;
     const isMeImpostor = isMe && myRole === 'impostor';
-    if (isMeImpostor) { cardClass += ' is-me-impostor'; voteIcon = '❗'; }
+    if (isMeImpostor) cardClass += ' is-me-impostor';
 
     const voteCount = voteCounts[p.id] || 0;
+    const isReady = readyPlayers && readyPlayers[p.id];
+    const voteIcon = myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓';
 
     card.className = cardClass;
     card.innerHTML = `
       ${voteCount > 0 ? `<div class="vote-count">${voteCount}</div>` : ''}
+      ${isReady ? '<div class="ready-badge">✓</div>' : ''}
       <div class="pav">${p.avatar}</div>
-      <div class="vote-icon">${myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓'}</div>
+      <div class="vote-icon">${voteIcon}</div>
       <div class="pname">${p.name}${isMe ? ' (você)' : ''}</div>
     `;
-
     card.onclick = () => openVotePopup(p);
     grid.appendChild(card);
   });
 
-  // Update impostor vote info
+  // Update impostor info
   if (myRole === 'impostor') {
     const myVoteCount = voteCounts[myId] || 0;
     const info = document.getElementById('impostor-vote-info');
@@ -935,6 +983,76 @@ async function refreshPlayerGrid() {
       ? `Ninguém votou em você ainda. TURNO: ${currentTurn}`
       : `${myVoteCount} pessoa(s) votaram em você. TURNO: ${currentTurn}`;
   }
+
+  // Update ready button
+  const btnReady = document.getElementById('btn-ready');
+  if (readyPlayers && readyPlayers[myId]) {
+    btnReady.textContent = '✓ PRONTO';
+    btnReady.style.opacity = '0.5';
+  } else {
+    btnReady.textContent = '✓ ESTOU PRONTO';
+    btnReady.style.opacity = '1';
+  }
+}
+
+async function refreshPlayerGrid() {
+  const playersSnap = await getDocs(collection(db, 'players'));
+  playersCache = [];
+  playersSnap.forEach(d => playersCache.push(d.data()));
+  playersCache.sort((a,b) => a.joinedAt - b.joinedAt);
+
+  const voteCounts = {};
+  for (const p of playersCache) {
+    const vSnap = await getDoc(doc(db, 'votes', p.id));
+    if (vSnap.exists()) {
+      const vData = vSnap.data();
+      let count = 0;
+      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
+      voteCounts[p.id] = count;
+    }
+  }
+
+  const turnSnap = await getDoc(doc(db, 'game', 'state'));
+  const readyPlayers = turnSnap.exists() ? (turnSnap.data().readyPlayers || {}) : {};
+
+  renderPlayerGrid(playersCache, voteCounts, readyPlayers);
+}
+
+function subscribeToVotes() {
+  if (unsubVotes) unsubVotes();
+
+  // Escuta a coleção inteira de votos em tempo real
+  // Cada mudança de qualquer jogador dispara para todos imediatamente
+  unsubVotes = onSnapshot(collection(db, 'votes'), async (snapshot) => {
+    if (isEndingTurn) return;
+
+    // Monta voteCounts diretamente do snapshot — sem getDoc em loop
+    const voteCounts = {};
+    snapshot.forEach(d => {
+      const vData = d.data();
+      let count = 0;
+      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
+      voteCounts[d.id] = count;
+
+      // Atualiza myVotes local se eu votei em alguém
+      if (vData.votedBy && vData.votedBy[myId]) {
+        myVotes[d.id] = vData.votedBy[myId];
+      }
+    });
+
+    // Garante que temos a lista de jogadores
+    if (!playersCache.length) {
+      const snap = await getDocs(collection(db, 'players'));
+      playersCache = [];
+      snap.forEach(d => playersCache.push(d.data()));
+      playersCache.sort((a,b) => a.joinedAt - b.joinedAt);
+    }
+
+    const gameSnap = await getDoc(doc(db, 'game', 'state'));
+    const readyPlayers = gameSnap.exists() ? (gameSnap.data().readyPlayers || {}) : {};
+
+    renderPlayerGrid(playersCache, voteCounts, readyPlayers);
+  });
 }
 
 function openVotePopup(player) {
@@ -970,14 +1088,12 @@ window.castVote = async function(verdict) {
   myVotes[targetId] = verdict;
   closePopup();
 
-  // Save vote to firestore
+  // Salva voto — o onSnapshot de votes vai atualizar todos automaticamente
   const voteRef = doc(db, 'votes', targetId);
   const vSnap = await getDoc(voteRef);
   const current = vSnap.exists() ? (vSnap.data().votedBy || {}) : {};
   current[myId] = verdict;
   await updateDoc(voteRef, { votedBy: current });
-
-  await refreshPlayerGrid();
 };
 
 window.closePopup = function() {
@@ -986,8 +1102,14 @@ window.closePopup = function() {
 };
 
 window.toggleReady = async function() {
+  const turnSnap = await getDoc(doc(db, 'game', 'state'));
+  const readyPlayers = turnSnap.exists() ? (turnSnap.data().readyPlayers || {}) : {};
+  readyPlayers[myId] = true;
+  await updateDoc(doc(db, 'game', 'state'), { readyPlayers });
+
   const btn = document.getElementById('btn-ready');
   btn.textContent = '✓ PRONTO';
+  btn.style.opacity = '0.5';
 };
 
 window.endTurn = async function() {
@@ -1043,7 +1165,7 @@ window.endTurn = async function() {
     players.forEach(p => {
       batch.set(doc(db, 'votes', p.id), { votedBy: {}, turn: currentTurn + 1 });
     });
-    batch.update(doc(db, 'game', 'state'), { turn: currentTurn + 1 });
+    batch.update(doc(db, 'game', 'state'), { turn: currentTurn + 1, readyPlayers: {} });
     await batch.commit();
     myVotes = {};
     currentTurn++;
