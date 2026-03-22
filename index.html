@@ -881,6 +881,12 @@ async function handleGameState(data) {
     if (isEndingTurn) return; // ignora snapshot durante endTurn
     const newTurn = data.turn || 1;
 
+    // Sinal de alerta de votos vindo do admin
+    if (data.alert === 'no_votes') {
+      showNoVotesAlert();
+      return;
+    }
+
     if (newTurn !== currentTurn) {
       // ── TURNO MUDOU: reseta tudo para todos ──────────────
       myVotes = {};
@@ -1265,14 +1271,44 @@ window.toggleReady = async function() {
   await updateDoc(doc(db, 'game', 'state'), { readyPlayers });
 };
 
+function showNoVotesAlert() {
+  const popup = document.getElementById('vote-popup');
+  const title = document.getElementById('popup-title');
+  const desc = document.getElementById('popup-desc');
+  const actions = document.getElementById('popup-actions');
+  title.textContent = '⚠️ NINGUÉM VOTOU!';
+  desc.textContent = 'Vocês precisam votar em alguém, pelo menos inocente ou impostor, pra mudar de turno.';
+  actions.innerHTML = `<button class="btn btn-yellow" onclick="closePopup()" style="font-size:17px;">ENTENDI</button>`;
+  popup.classList.add('show');
+}
+
 window.endTurn = async function() {
   if (isEndingTurn) return; // evita duplo clique
   isEndingTurn = true;
-  // Check win condition: all players voted for same single player as impostor
+
   const playersSnap = await getDocs(collection(db, 'players'));
   const players = [];
   playersSnap.forEach(d => players.push(d.data()));
   const total = players.length;
+
+  // Verifica se ao menos 1 voto foi dado (impostor OU inocente)
+  const votesSnap = await getDocs(collection(db, 'votes'));
+  let totalVotesCast = 0;
+  votesSnap.forEach(d => {
+    const vData = d.data();
+    if (vData.votedBy) totalVotesCast += Object.keys(vData.votedBy).length;
+  });
+
+  if (totalVotesCast === 0) {
+    // Sinaliza para TODOS via Firestore
+    await updateDoc(doc(db, 'game', 'state'), { alert: 'no_votes' });
+    // Limpa o alerta logo depois (sem persistir)
+    setTimeout(async () => {
+      await updateDoc(doc(db, 'game', 'state'), { alert: null });
+    }, 1500);
+    isEndingTurn = false;
+    return;
+  }
 
   const voteCounts = {};
   for (const p of players) {
