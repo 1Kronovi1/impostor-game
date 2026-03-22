@@ -881,9 +881,9 @@ async function handleGameState(data) {
     if (isEndingTurn) return; // ignora snapshot durante endTurn
     const newTurn = data.turn || 1;
 
-    // Sinal de alerta de votos vindo do admin
+    // Sinal de alerta de votos — só dispara para não-admins (admin já viu local)
     if (data.alert === 'no_votes') {
-      showNoVotesAlert();
+      if (!isAdmin) showNoVotesAlert();
       return;
     }
 
@@ -1259,6 +1259,22 @@ window.closePopup = function() {
 
 window.toggleReady = async function() {
   if (iAmReady) return;
+
+  // Verifica se o jogador votou em pelo menos 1 pessoa (inocente OU impostor)
+  const myVoteCount = Object.keys(myVotes).length;
+  if (myVoteCount === 0) {
+    // Popup pessoal — não vai pro Firestore, só aparece na tela deste jogador
+    const popup = document.getElementById('vote-popup');
+    const title = document.getElementById('popup-title');
+    const desc = document.getElementById('popup-desc');
+    const actions = document.getElementById('popup-actions');
+    title.textContent = '⚠️ VOCÊ NÃO VOTOU!';
+    desc.textContent = 'O jogo precisa de votos para você dar pronto.';
+    actions.innerHTML = `<button class="btn btn-yellow" onclick="closePopup()" style="font-size:17px;">ENTENDI</button>`;
+    popup.classList.add('show');
+    return;
+  }
+
   iAmReady = true;
   const btn = document.getElementById('btn-ready');
   btn.textContent = '✓ PRONTO';
@@ -1300,13 +1316,14 @@ window.endTurn = async function() {
   });
 
   if (totalVotesCast === 0) {
-    // Sinaliza para TODOS via Firestore
-    await updateDoc(doc(db, 'game', 'state'), { alert: 'no_votes' });
-    // Limpa o alerta logo depois (sem persistir)
-    setTimeout(async () => {
-      await updateDoc(doc(db, 'game', 'state'), { alert: null });
-    }, 1500);
     isEndingTurn = false;
+    // Mostra popup no admin imediatamente (local)
+    showNoVotesAlert();
+    // Sinaliza para TODOS os outros via Firestore
+    await updateDoc(doc(db, 'game', 'state'), { alert: 'no_votes' });
+    setTimeout(async () => {
+      try { await updateDoc(doc(db, 'game', 'state'), { alert: null }); } catch(e){}
+    }, 2000);
     return;
   }
 
