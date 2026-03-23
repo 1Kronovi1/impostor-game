@@ -287,7 +287,7 @@
   }
   .player-card:hover { border-color: #444; transform: translateY(-2px); }
   .player-card.is-me-impostor { border-color: var(--red); background: #1f0a0e; }
-  .player-card.voted-innocent { border-color: var(--green); }
+  /* voted-innocent removed */
   .player-card.voted-impostor { border-color: var(--red); }
   .player-card .pav { font-size: 34px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; }
   .player-card .pname { font-size: 12px; font-weight: 700; text-align: center; }
@@ -415,6 +415,17 @@
   .rejoin-avatar { font-size: 64px; margin-bottom: 12px; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .rejoin-name { font-family: "Bebas Neue", sans-serif; font-size: 36px; letter-spacing: 3px; color: var(--green); margin-bottom: 8px; }
   .rejoin-status { font-size: 14px; color: var(--muted); }
+
+  .runoff-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 12px 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer; border: 2px solid #333; transition: all 0.2s; position: relative;
+  }
+  .runoff-card:hover { border-color: var(--yellow); transform: translateY(-2px); }
+  .runoff-card.selected { border-color: var(--red); background: #1f0a0e; }
+  .runoff-card .rv-count { position: absolute; top:-8px; left:-8px; background:var(--red); color:#fff; font-size:11px; font-weight:900; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); }
 
   .firebase-error {
     background: #1a0a0a;
@@ -589,6 +600,14 @@
 
   <button class="btn btn-yellow" id="btn-end-turn" style="display:none;" onclick="endTurn()">ENCERRAR TURNO</button>
   <button class="btn btn-outline btn-sm" id="btn-ready" style="margin-top:8px;" onclick="toggleReady()">✓ PRONTO</button>
+</div>
+
+<!-- SCREEN RUNOFF: desempate -->
+<div class="screen" id="screen-runoff">
+  <h2 style="color:var(--yellow);margin-bottom:6px;">⚖️ EMPATE!</h2>
+  <p style="color:var(--muted);font-size:13px;text-align:center;margin-bottom:20px;">Mais de uma pessoa atingiu 3 votos.<br>Vote em quem você acha que é o impostor.</p>
+  <div class="player-grid" id="runoff-grid"></div>
+  <div id="runoff-status" style="font-size:13px;color:var(--muted);text-align:center;margin-top:8px;"></div>
 </div>
 
 <!-- SCREEN 5: END -->
@@ -1166,6 +1185,10 @@ async function handleGameState(data) {
     }
   }
 
+  if (data.phase === 'runoff') {
+    showRunoffScreen(data);
+  }
+
   if (data.phase === 'ended') {
     showEndScreen(data);
   }
@@ -1279,7 +1302,7 @@ async function renderGameScreen(gameData) {
   subscribeToVotes();
 }
 
-function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
+function renderPlayerGrid(players, voteCounts, readyPlayers) {
   const grid = document.getElementById('player-grid');
   grid.innerHTML = '';
 
@@ -1288,7 +1311,6 @@ function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
     const myVote = myVotes[p.id];
     let cardClass = 'player-card';
 
-    if (myVote === 'innocent') cardClass += ' voted-innocent';
     if (myVote === 'impostor') cardClass += ' voted-impostor';
 
     const isMe = p.id === myId;
@@ -1297,19 +1319,17 @@ function renderPlayerGrid(players, voteCounts, innocentCounts, readyPlayers) {
     if (iAmReady) cardClass += ' locked';
 
     const impCount = voteCounts[p.id] || 0;
-    const innCount = innocentCounts[p.id] || 0;
     const isReady = readyPlayers && readyPlayers[p.id];
-    const voteIcon = myVote === 'innocent' ? '🟢' : myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓';
+    const voteIcon = myVote === 'impostor' ? '🚩' : isMeImpostor ? '❗' : '❓';
 
     card.className = cardClass;
     const impPill = impCount > 0 ? `<span class="vote-pill imp">🚩 ${impCount}</span>` : '';
-    const innPill = innCount > 0 ? `<span class="vote-pill inn">🟢 ${innCount}</span>` : '';
     card.innerHTML = `
       ${isReady ? '<div class="ready-badge">✓</div>' : ''}
       <div class="pav">${avatarImg(p.avatar, 36)}</div>
       <div class="vote-icon">${voteIcon}</div>
       <div class="pname">${p.name}${isMe ? ' (você)' : ''}</div>
-      <div class="vote-bar">${impPill}${innPill}</div>
+      <div class="vote-bar">${impPill}</div>
     `;
     card.onclick = () => openVotePopup(p);
     grid.appendChild(card);
@@ -1342,22 +1362,20 @@ async function refreshPlayerGrid() {
   playersCache.sort((a,b) => a.joinedAt - b.joinedAt);
 
   const voteCounts = {};
-  const innocentCounts = {};
   for (const p of playersCache) {
     const vSnap = await getDoc(doc(db, 'votes', p.id));
     if (vSnap.exists()) {
       const vData = vSnap.data();
-      let imp = 0, inn = 0;
-      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') imp++; else if (v === 'innocent') inn++; });
+      let imp = 0;
+      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') imp++; });
       voteCounts[p.id] = imp;
-      innocentCounts[p.id] = inn;
     }
   }
 
   const turnSnap = await getDoc(doc(db, 'game', 'state'));
   const readyPlayers = turnSnap.exists() ? (turnSnap.data().readyPlayers || {}) : {};
 
-  renderPlayerGrid(playersCache, voteCounts, innocentCounts, readyPlayers);
+  renderPlayerGrid(playersCache, voteCounts, readyPlayers);
 }
 
 function subscribeToPlayers() {
@@ -1390,26 +1408,20 @@ function subscribeToVotes() {
   unsubVotes = onSnapshot(collection(db, 'votes'), async (snapshot) => {
     if (isEndingTurn) return;
 
-    const voteCounts = {};     // votos de IMPOSTOR por jogador
-    const innocentCounts = {}; // votos de INOCENTE por jogador
+    const voteCounts = {};
 
     snapshot.forEach(d => {
       const vData = d.data();
-      let imp = 0, inn = 0;
+      let imp = 0;
       if (vData.votedBy) {
-        Object.values(vData.votedBy).forEach(v => {
-          if (v === 'impostor') imp++;
-          else if (v === 'innocent') inn++;
-        });
+        Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') imp++; });
       }
       voteCounts[d.id] = imp;
-      innocentCounts[d.id] = inn;
 
-      // Sincroniza myVotes local com Firestore (fonte da verdade)
+      // Sincroniza myVotes local com Firestore
       if (vData.votedBy && vData.votedBy[myId]) {
         myVotes[d.id] = vData.votedBy[myId];
       } else if (myVotes[d.id]) {
-        // Se não há mais meu voto no Firestore (foi removido), limpa local também
         delete myVotes[d.id];
       }
     });
@@ -1424,7 +1436,7 @@ function subscribeToVotes() {
     const gameSnap = await getDoc(doc(db, 'game', 'state'));
     const readyPlayers = gameSnap.exists() ? (gameSnap.data().readyPlayers || {}) : {};
 
-    renderPlayerGrid(playersCache, voteCounts, innocentCounts, readyPlayers);
+    renderPlayerGrid(playersCache, voteCounts, readyPlayers);
   });
 }
 
@@ -1439,30 +1451,20 @@ function openVotePopup(player) {
 
   popup.classList.add('show');
 
-  if (myRole === 'impostor') {
-    if (isMe) {
-      // Votando em si mesmo
-      title.textContent = 'SE ENTREGAR?';
-      desc.textContent = 'Vai se denunciar pra eles?';
-      actions.innerHTML = `
-        <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 SE ENTREGAR</button>
-        <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
-      `;
-    } else {
-      // Votando em outro jogador — impostor tem as mesmas opções dos inocentes
-      title.textContent = `VOTAR: ${player.name.toUpperCase()}`;
-      desc.textContent = 'Finja que você sabe o que é...';
-      actions.innerHTML = `
-        <button class="btn btn-green" onclick="castVote('innocent')" style="font-size:15px;">🟢 INOCENTE</button>
-        <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 IMPOSTOR</button>
-      `;
-    }
+  if (myRole === 'impostor' && isMe) {
+    title.textContent = 'SE ENTREGAR?';
+    desc.textContent = 'Vai se denunciar pra eles?';
+    actions.innerHTML = `
+      <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 SE ENTREGAR</button>
+      <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
+    `;
   } else {
     title.textContent = `VOTAR: ${player.name.toUpperCase()}`;
-    desc.textContent = 'O que você acha deste jogador?';
+    desc.textContent = myVotes[player.id] === 'impostor'
+      ? 'Remover voto de impostor?' : 'Votar como impostor?';
     actions.innerHTML = `
-      <button class="btn btn-green" onclick="castVote('innocent')" style="font-size:15px;">🟢 INOCENTE</button>
-      <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 IMPOSTOR</button>
+      <button class="btn btn-red" onclick="castVote('impostor')" style="font-size:15px;">🚩 VOTAR IMPOSTOR</button>
+      <button class="btn btn-outline" onclick="closePopup()">CANCELAR</button>
     `;
   }
 }
@@ -1491,30 +1493,35 @@ window.castVote = async function(verdict) {
   const targetId = pendingVoteTarget.id;
   closePopup();
 
-  // Se votou IMPOSTOR, remove voto anterior de impostor de outro jogador
-  if (verdict === 'impostor') {
-    const previousImpostorTarget = Object.entries(myVotes).find(([id, v]) => v === 'impostor' && id !== targetId);
-    if (previousImpostorTarget) {
-      const [oldTargetId] = previousImpostorTarget;
-      // Remove meu voto de impostor do alvo anterior no Firestore
-      const oldRef = doc(db, 'votes', oldTargetId);
-      const oldSnap = await getDoc(oldRef);
-      if (oldSnap.exists()) {
-        const oldData = oldSnap.data().votedBy || {};
-        delete oldData[myId];
-        await updateDoc(oldRef, { votedBy: oldData });
-      }
-      delete myVotes[oldTargetId];
+  // Toggle: clicar de novo no mesmo remove o voto
+  const alreadyVoted = myVotes[targetId] === verdict;
+
+  // Remove voto anterior de impostor em outro jogador (só 1 permitido)
+  const previousTarget = Object.entries(myVotes).find(([id, v]) => v === 'impostor' && id !== targetId);
+  if (previousTarget) {
+    const [oldId] = previousTarget;
+    const oldRef = doc(db, 'votes', oldId);
+    const oldSnap = await getDoc(oldRef);
+    if (oldSnap.exists()) {
+      const oldData = oldSnap.data().votedBy || {};
+      delete oldData[myId];
+      await updateDoc(oldRef, { votedBy: oldData });
     }
+    delete myVotes[oldId];
   }
 
-  myVotes[targetId] = verdict;
-
-  // Salva voto no Firestore — onSnapshot atualiza todos em tempo real
   const voteRef = doc(db, 'votes', targetId);
   const vSnap = await getDoc(voteRef);
   const current = vSnap.exists() ? (vSnap.data().votedBy || {}) : {};
-  current[myId] = verdict;
+
+  if (alreadyVoted) {
+    // Remove o voto
+    delete current[myId];
+    delete myVotes[targetId];
+  } else {
+    current[myId] = verdict;
+    myVotes[targetId] = verdict;
+  }
   await updateDoc(voteRef, { votedBy: current });
 };
 
@@ -1527,7 +1534,7 @@ window.toggleReady = async function() {
   if (iAmReady) return;
 
   // Verifica se o jogador votou em pelo menos 1 pessoa (inocente OU impostor)
-  const myVoteCount = Object.keys(myVotes).length;
+  const myVoteCount = Object.values(myVotes).filter(v => v === 'impostor').length;
   if (myVoteCount === 0) {
     // Popup pessoal — não vai pro Firestore, só aparece na tela deste jogador
     const popup = document.getElementById('vote-popup');
@@ -1599,39 +1606,47 @@ window.endTurn = async function() {
     if (vSnap.exists()) {
       const vData = vSnap.data();
       let count = 0;
-      if (vData.votedBy) {
-        Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
-      }
+      if (vData.votedBy) Object.values(vData.votedBy).forEach(v => { if (v === 'impostor') count++; });
       voteCounts[p.id] = count;
     }
   }
 
-  // Find if any player got ALL votes as impostor
   const gameSnap = await getDoc(doc(db, 'game', 'state'));
   const gameData = gameSnap.data();
   const realImpostorId = gameData.impostorId;
   const character = gameData.character;
 
-  let winner = null;
-  let impostorCaught = false;
+  // Jogadores com 3+ votos de impostor
+  const suspects = players.filter(p => (voteCounts[p.id] || 0) >= 3);
 
-  for (const p of players) {
-    if (voteCounts[p.id] === total) {
-      winner = p;
-      impostorCaught = (p.id === realImpostorId);
-      break;
-    }
+  if (suspects.length === 1) {
+    // Apenas 1 suspeito com 3+ votos — declara resultado
+    const winner = suspects[0];
+    const impostorCaught = winner.id === realImpostorId;
+    await updateDoc(doc(db, 'game', 'state'), {
+      phase: 'ended', impostorCaught, character,
+      impostorId: realImpostorId, impostorName: gameData.impostorName
+    });
+    isEndingTurn = false;
+    return;
   }
 
-  if (winner) {
+  if (suspects.length > 1) {
+    // Empate — inicia votação de desempate
     await updateDoc(doc(db, 'game', 'state'), {
-      phase: 'ended',
-      impostorCaught,
+      phase: 'runoff',
+      runoffPlayers: suspects.map(p => ({ id: p.id, name: p.name, avatar: p.avatar })),
+      runoffVotes: {},
       character,
       impostorId: realImpostorId,
       impostorName: gameData.impostorName
     });
-  } else {
+    isEndingTurn = false;
+    return;
+  }
+
+  // Ninguém com 3+ votos — próximo turno
+  if (true) {
     // Calcula histórico antes do commit
     let mostVoted = null;
     let maxVotes = 0;
@@ -1665,6 +1680,61 @@ window.endTurn = async function() {
   }
   isEndingTurn = false;
 };
+
+let myRunoffVote = null;
+
+function showRunoffScreen(data) {
+  showScreen('screen-runoff');
+  const grid = document.getElementById('runoff-grid');
+  grid.innerHTML = '';
+  const runoffPlayers = data.runoffPlayers || [];
+  const runoffVotes = data.runoffVotes || {};
+
+  runoffPlayers.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'runoff-card' + (myRunoffVote === p.id ? ' selected' : '');
+    const vCount = Object.values(runoffVotes).filter(v => v === p.id).length;
+    card.innerHTML = `
+      ${vCount > 0 ? `<div class="rv-count">${vCount}</div>` : ''}
+      <div class="pav">${avatarImg(p.avatar, 40)}</div>
+      <div class="pname">${p.name}</div>
+    `;
+    card.onclick = async () => {
+      myRunoffVote = p.id;
+      // Save to Firestore
+      const gs = await getDoc(doc(db, 'game', 'state'));
+      const rv = gs.exists() ? (gs.data().runoffVotes || {}) : {};
+      rv[myId] = p.id;
+      await updateDoc(doc(db, 'game', 'state'), { runoffVotes: rv });
+      // Re-render
+      showRunoffScreen({ ...data, runoffVotes: rv });
+
+      // Check if >50% voted same person
+      const totalPlayers = (await getDocs(collection(db, 'players'))).size;
+      const counts = {};
+      Object.values(rv).forEach(id => { counts[id] = (counts[id]||0)+1; });
+      const [topId, topCount] = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0] || [];
+      if (topCount > totalPlayers / 2) {
+        const chosen = runoffPlayers.find(p => p.id === topId);
+        const gs2 = await getDoc(doc(db, 'game', 'state'));
+        const gd = gs2.data();
+        await updateDoc(doc(db, 'game', 'state'), {
+          phase: 'ended',
+          impostorCaught: topId === gd.impostorId,
+          character: gd.character,
+          impostorId: gd.impostorId,
+          impostorName: gd.impostorName
+        });
+      }
+    };
+    grid.appendChild(card);
+  });
+
+  // Status
+  const runoffVotesCount = Object.keys(data.runoffVotes || {}).length;
+  document.getElementById('runoff-status').textContent =
+    `${runoffVotesCount} voto(s) registrado(s). Maioria acima de 50% decide.`;
+}
 
 function showEndScreen(data) {
   showScreen('screen-end');
@@ -1707,6 +1777,7 @@ function resetLocalState() {
   myRole = null;
   myCharacter = null;
   myVotes = {};
+  myRunoffVote = null;
   currentTurn = 1;
   gameStarted = false;
   iAmReady = false;
@@ -1795,37 +1866,18 @@ window.newLogin = function() {
 
 
 // ── HEARTBEAT ──────────────────────────────────────────────
+// Apenas envia ping — remoção de jogadores é feita SOMENTE pelo admin via painel
 let heartbeatInterval = null;
 
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   sendHeartbeat();
-  heartbeatInterval = setInterval(() => {
-    sendHeartbeat();
-    cleanDeadPlayers();
-  }, 10000);
+  heartbeatInterval = setInterval(sendHeartbeat, 15000);
 }
 
 async function sendHeartbeat() {
   if (!myId || !db) return;
   try { await updateDoc(doc(db, 'players', myId), { lastSeen: Date.now() }); } catch(e) {}
-}
-
-async function cleanDeadPlayers() {
-  const threshold = Date.now() - 25000;
-  try {
-    const snap = await getDocs(collection(db, 'players'));
-    const batch = writeBatch(db);
-    let changed = false;
-    snap.forEach(d => {
-      const data = d.data();
-      if (data.id !== myId && data.lastSeen && data.lastSeen < threshold) {
-        batch.delete(doc(db, 'players', d.id));
-        changed = true;
-      }
-    });
-    if (changed) await batch.commit();
-  } catch(e) {}
 }
 
 window.addEventListener('beforeunload', () => {
